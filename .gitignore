@@ -50,18 +50,33 @@ desktop.ini
 *.sw?
 
 # ===========================
-# Uploads / User files
+# Uploads / User Files
 # ===========================
 server/uploads/
 
 # ===========================
 # Docker
 # ===========================
-.dockerignore
+
 
 # ===========================
-# Misc
+# Testing / Coverage
 # ===========================
 coverage/
 .nyc_output/
 .cache/
+
+# ===========================
+# Temporary / Backup Files
+# ===========================
+*.tmp
+*.temp
+*.bak
+*~
+
+# ===========================
+# Secrets / Certificates
+# ===========================
+*.pem
+*.key
+*.crt
