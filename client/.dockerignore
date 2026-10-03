@@ -1,0 +1,16 @@
+@"
+node_modules/
+npm-debug.log*
+dist/
+build/
+.env
+.env.*
+*.env
+.git/
+.gitignore
+coverage/
+.cache/
+*.tmp
+*.temp
+*.bak
+"@ | Set-Content client/.dockerignore
