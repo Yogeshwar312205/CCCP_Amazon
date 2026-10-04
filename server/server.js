@@ -45,7 +45,7 @@ const startServer = async () => {
     await sequelize.sync();
     logger.info('Sequelize models synchronized with MySQL database.');
 
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
       logger.info(`🚀 Server running in ${env.NODE_ENV} mode on port ${PORT}`);
     });
   } catch (error) {
