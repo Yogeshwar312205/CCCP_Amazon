@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
+
 const env = require('./config/env');
 const logger = require('./config/logger');
 const { sequelize } = require('./src/models');
@@ -11,9 +12,13 @@ const { globalLimiter } = require('./src/middlewares/rateLimiter.middleware');
 
 const app = express();
 
+// Trust the AWS Application Load Balancer as the reverse proxy.
+// Required for express-rate-limit to correctly handle X-Forwarded-For.
+app.set('trust proxy', 1);
+
 // Security and utility middlewares
 app.use(helmet());
-app.use(cors({ origin: '*' })); // Configure as needed for development/production
+app.use(cors({ origin: '*' }));
 app.use(globalLimiter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -37,16 +42,19 @@ const PORT = env.PORT || 5000;
 
 const startServer = async () => {
   try {
-    // Sync database connection
+    // Verify database connection
     await sequelize.authenticate();
     logger.info('Database connection established successfully.');
 
-    // Synchronize models without destructive lock-prone ALTER queries on boot
+    // Synchronize Sequelize models
     await sequelize.sync();
     logger.info('Sequelize models synchronized with MySQL database.');
 
+    // Listen on all network interfaces for Docker/ECS
     app.listen(PORT, '0.0.0.0', () => {
-      logger.info(`🚀 Server running in ${env.NODE_ENV} mode on port ${PORT}`);
+      logger.info(
+        `🚀 Server running in ${env.NODE_ENV} mode on port ${PORT}`
+      );
     });
   } catch (error) {
     logger.error('Unable to connect to the database:', error);
