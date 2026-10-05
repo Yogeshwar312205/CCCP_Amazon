@@ -20,37 +20,37 @@ env:
 
 jobs:
   build-test-scan-push:
-    name: Build, Test, Security Scan and Push
+    name: Build, Test, Security Scan and Deploy
     runs-on: ubuntu-24.04
 
     steps:
 
-      # --------------------------------------------------
-      # 1. Checkout source code
-      # --------------------------------------------------
+      # ==================================================
+      # CHECKOUT
+      # ==================================================
+
       - name: Checkout source code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # --------------------------------------------------
-      # 2. Configure AWS using GitHub OIDC
-      # --------------------------------------------------
+      # ==================================================
+      # AWS AUTHENTICATION
+      # ==================================================
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6.3.0
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # --------------------------------------------------
-      # 3. Verify AWS identity
-      # --------------------------------------------------
       - name: Verify AWS identity
         run: aws sts get-caller-identity
 
-      # --------------------------------------------------
-      # 4. Setup Node.js
-      # --------------------------------------------------
+      # ==================================================
+      # NODE.JS
+      # ==================================================
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -64,23 +64,14 @@ jobs:
       # FRONTEND CI
       # ==================================================
 
-      # --------------------------------------------------
-      # 5. Install frontend dependencies
-      # --------------------------------------------------
       - name: Install frontend dependencies
         working-directory: client
         run: npm ci
 
-      # --------------------------------------------------
-      # 6. Frontend lint
-      # --------------------------------------------------
       - name: Frontend lint
         working-directory: client
         run: npm run lint
 
-      # --------------------------------------------------
-      # 7. Frontend build
-      # --------------------------------------------------
       - name: Frontend build
         working-directory: client
         run: npm run build
@@ -89,16 +80,10 @@ jobs:
       # BACKEND CI
       # ==================================================
 
-      # --------------------------------------------------
-      # 8. Install backend dependencies
-      # --------------------------------------------------
       - name: Install backend dependencies
         working-directory: server
         run: npm ci
 
-      # --------------------------------------------------
-      # 9. Backend dependency vulnerability audit
-      # --------------------------------------------------
       - name: Backend production dependency audit
         working-directory: server
         run: npm audit --omit=dev --audit-level=high
@@ -107,27 +92,18 @@ jobs:
       # DEVSECOPS - SECRET SCANNING
       # ==================================================
 
-      # --------------------------------------------------
-      # 10. Scan repository for exposed secrets
-      # --------------------------------------------------
       - name: Scan repository for secrets
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # ==================================================
-      # DOCKER
+      # DOCKER / ECR
       # ==================================================
 
-      # --------------------------------------------------
-      # 11. Login to Amazon ECR
-      # --------------------------------------------------
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      # --------------------------------------------------
-      # 12. Build frontend Docker image
-      # --------------------------------------------------
       - name: Build frontend Docker image
         run: |
           docker build \
@@ -135,9 +111,6 @@ jobs:
             -t ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_CLIENT_REPOSITORY }}:latest \
             ./client
 
-      # --------------------------------------------------
-      # 13. Build backend Docker image
-      # --------------------------------------------------
       - name: Build backend Docker image
         run: |
           docker build \
@@ -149,9 +122,6 @@ jobs:
       # DEVSECOPS - CONTAINER SECURITY
       # ==================================================
 
-      # --------------------------------------------------
-      # 14. Trivy frontend image scan
-      # --------------------------------------------------
       - name: Scan frontend image with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -162,9 +132,6 @@ jobs:
           ignore-unfixed: true
           vuln-type: os,library
 
-      # --------------------------------------------------
-      # 15. Trivy backend image scan
-      # --------------------------------------------------
       - name: Scan backend image with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -176,12 +143,9 @@ jobs:
           vuln-type: os,library
 
       # ==================================================
-      # ECR PUSH
+      # PUSH IMAGES TO ECR
       # ==================================================
 
-      # --------------------------------------------------
-      # 16. Push frontend image
-      # --------------------------------------------------
       - name: Push frontend image
         run: |
           docker push \
@@ -190,9 +154,6 @@ jobs:
           docker push \
             ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_CLIENT_REPOSITORY }}:latest
 
-      # --------------------------------------------------
-      # 17. Push backend image
-      # --------------------------------------------------
       - name: Push backend image
         run: |
           docker push \
@@ -202,16 +163,43 @@ jobs:
             ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_SERVER_REPOSITORY }}:latest
 
       # ==================================================
+      # CD - DEPLOY TO ECS
+      # ==================================================
+
+      - name: Deploy frontend to ECS
+        run: |
+          aws ecs update-service \
+            --cluster CCCP-Amazon-Cluster \
+            --service CCCP-Amazon-Frontend-service \
+            --force-new-deployment
+
+      - name: Deploy backend to ECS
+        run: |
+          aws ecs update-service \
+            --cluster CCCP-Amazon-Cluster \
+            --service CCCP-Amazon-Backend-service-qd0nfiny \
+            --force-new-deployment
+
+      # ==================================================
+      # WAIT FOR DEPLOYMENT
+      # ==================================================
+
+      - name: Wait for ECS services to stabilize
+        run: |
+          aws ecs wait services-stable \
+            --cluster CCCP-Amazon-Cluster \
+            --services \
+              CCCP-Amazon-Frontend-service \
+              CCCP-Amazon-Backend-service-qd0nfiny
+
+      # ==================================================
       # SUCCESS
       # ==================================================
 
-      # --------------------------------------------------
-      # 18. Pipeline completion
-      # --------------------------------------------------
-      - name: Pipeline completed
+      - name: Deployment completed
         run: |
           echo "=========================================="
-          echo "CI/CD PIPELINE COMPLETED SUCCESSFULLY"
+          echo "CI/CD DEPLOYMENT COMPLETED SUCCESSFULLY"
           echo "=========================================="
           echo "Frontend lint: PASSED"
           echo "Frontend build: PASSED"
@@ -220,4 +208,7 @@ jobs:
           echo "Docker builds: PASSED"
           echo "Trivy security scans: PASSED"
           echo "Docker images pushed to Amazon ECR"
+          echo "Frontend deployed to ECS"
+          echo "Backend deployed to ECS"
+          echo "ECS services are stable"
           echo "=========================================="
