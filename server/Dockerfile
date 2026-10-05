@@ -1,16 +1,19 @@
 # Multi-stage production Dockerfile for CCCP Amazon Server
-FROM node:20-alpine AS base
+FROM node:22-alpine AS base
 
 WORKDIR /app
 
-# Install dependencies
+# Update Alpine OS packages to security-fixed versions
+RUN apk upgrade --no-cache
+
+# Install production dependencies only
 COPY package*.json ./
 RUN npm ci --omit=dev
 
 # Copy source files
 COPY . .
 
-# Ensure uploads directory exists
+# Ensure uploads and logs directories exist
 RUN mkdir -p uploads logs
 
 # Environment defaults
