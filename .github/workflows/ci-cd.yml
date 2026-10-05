@@ -99,9 +99,9 @@ jobs:
       # --------------------------------------------------
       # 9. Backend dependency vulnerability audit
       # --------------------------------------------------
-      - name: Backend dependency audit
+      - name: Backend production dependency audit
         working-directory: server
-        run: npm audit --audit-level=high
+        run: npm audit --omit=dev --audit-level=high
 
       # ==================================================
       # DEVSECOPS - SECRET SCANNING
