@@ -1,0 +1,223 @@
+name: CCCP Amazon CI/CD
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-south-1
+  AWS_ACCOUNT_ID: "463605761271"
+
+  ECR_CLIENT_REPOSITORY: cccp-amazon-client
+  ECR_SERVER_REPOSITORY: cccp-amazon-server
+
+jobs:
+  build-test-scan-push:
+    name: Build, Test, Security Scan and Push
+    runs-on: ubuntu-24.04
+
+    steps:
+
+      # --------------------------------------------------
+      # 1. Checkout source code
+      # --------------------------------------------------
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # --------------------------------------------------
+      # 2. Configure AWS using GitHub OIDC
+      # --------------------------------------------------
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # --------------------------------------------------
+      # 3. Verify AWS identity
+      # --------------------------------------------------
+      - name: Verify AWS identity
+        run: aws sts get-caller-identity
+
+      # --------------------------------------------------
+      # 4. Setup Node.js
+      # --------------------------------------------------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            server/package-lock.json
+
+      # ==================================================
+      # FRONTEND CI
+      # ==================================================
+
+      # --------------------------------------------------
+      # 5. Install frontend dependencies
+      # --------------------------------------------------
+      - name: Install frontend dependencies
+        working-directory: client
+        run: npm ci
+
+      # --------------------------------------------------
+      # 6. Frontend lint
+      # --------------------------------------------------
+      - name: Frontend lint
+        working-directory: client
+        run: npm run lint
+
+      # --------------------------------------------------
+      # 7. Frontend build
+      # --------------------------------------------------
+      - name: Frontend build
+        working-directory: client
+        run: npm run build
+
+      # ==================================================
+      # BACKEND CI
+      # ==================================================
+
+      # --------------------------------------------------
+      # 8. Install backend dependencies
+      # --------------------------------------------------
+      - name: Install backend dependencies
+        working-directory: server
+        run: npm ci
+
+      # --------------------------------------------------
+      # 9. Backend dependency vulnerability audit
+      # --------------------------------------------------
+      - name: Backend dependency audit
+        working-directory: server
+        run: npm audit --audit-level=high
+
+      # ==================================================
+      # DEVSECOPS - SECRET SCANNING
+      # ==================================================
+
+      # --------------------------------------------------
+      # 10. Scan repository for exposed secrets
+      # --------------------------------------------------
+      - name: Scan repository for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ==================================================
+      # DOCKER
+      # ==================================================
+
+      # --------------------------------------------------
+      # 11. Login to Amazon ECR
+      # --------------------------------------------------
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # --------------------------------------------------
+      # 12. Build frontend Docker image
+      # --------------------------------------------------
+      - name: Build frontend Docker image
+        run: |
+          docker build \
+            -t ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_CLIENT_REPOSITORY }}:${{ github.sha }} \
+            -t ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_CLIENT_REPOSITORY }}:latest \
+            ./client
+
+      # --------------------------------------------------
+      # 13. Build backend Docker image
+      # --------------------------------------------------
+      - name: Build backend Docker image
+        run: |
+          docker build \
+            -t ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_SERVER_REPOSITORY }}:${{ github.sha }} \
+            -t ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_SERVER_REPOSITORY }}:latest \
+            ./server
+
+      # ==================================================
+      # DEVSECOPS - CONTAINER SECURITY
+      # ==================================================
+
+      # --------------------------------------------------
+      # 14. Trivy frontend image scan
+      # --------------------------------------------------
+      - name: Scan frontend image with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_CLIENT_REPOSITORY }}:${{ github.sha }}
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          ignore-unfixed: true
+          vuln-type: os,library
+
+      # --------------------------------------------------
+      # 15. Trivy backend image scan
+      # --------------------------------------------------
+      - name: Scan backend image with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_SERVER_REPOSITORY }}:${{ github.sha }}
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          ignore-unfixed: true
+          vuln-type: os,library
+
+      # ==================================================
+      # ECR PUSH
+      # ==================================================
+
+      # --------------------------------------------------
+      # 16. Push frontend image
+      # --------------------------------------------------
+      - name: Push frontend image
+        run: |
+          docker push \
+            ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_CLIENT_REPOSITORY }}:${{ github.sha }}
+
+          docker push \
+            ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_CLIENT_REPOSITORY }}:latest
+
+      # --------------------------------------------------
+      # 17. Push backend image
+      # --------------------------------------------------
+      - name: Push backend image
+        run: |
+          docker push \
+            ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_SERVER_REPOSITORY }}:${{ github.sha }}
+
+          docker push \
+            ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_SERVER_REPOSITORY }}:latest
+
+      # ==================================================
+      # SUCCESS
+      # ==================================================
+
+      # --------------------------------------------------
+      # 18. Pipeline completion
+      # --------------------------------------------------
+      - name: Pipeline completed
+        run: |
+          echo "=========================================="
+          echo "CI/CD PIPELINE COMPLETED SUCCESSFULLY"
+          echo "=========================================="
+          echo "Frontend lint: PASSED"
+          echo "Frontend build: PASSED"
+          echo "Backend dependency audit: PASSED"
+          echo "Gitleaks secret scan: PASSED"
+          echo "Docker builds: PASSED"
+          echo "Trivy security scans: PASSED"
+          echo "Docker images pushed to Amazon ECR"
+          echo "=========================================="
