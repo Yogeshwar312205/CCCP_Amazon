@@ -1,0 +1,30 @@
+{
+  "family": "CCCP-Amazon-Frontend",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::463605761271:role/CCCP-Amazon-ECS-TaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "client",
+      "image": "463605761271.dkr.ecr.ap-south-1.amazonaws.com/cccp-amazon-client:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 80,
+          "protocol": "tcp"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-create-group": "true",
+          "awslogs-group": "/ecs/cccp-amazon-client",
+          "awslogs-region": "ap-south-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}
