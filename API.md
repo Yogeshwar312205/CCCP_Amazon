@@ -40,7 +40,7 @@
   "message": "User registered successfully",
   "data": {
     "user": { "id": 1, "firstName": "John", "lastName": "Doe", "email": "john.doe@example.com", "role": "CUSTOMER" },
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    "token": "<JWT_TOKEN>"
   }
 }
 ```
