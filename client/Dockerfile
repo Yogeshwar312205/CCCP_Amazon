@@ -12,6 +12,9 @@ RUN npm run build
 # Nginx production serving
 FROM nginx:alpine
 
+# Update Alpine OS packages to the latest security-fixed versions
+RUN apk upgrade --no-cache
+
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
