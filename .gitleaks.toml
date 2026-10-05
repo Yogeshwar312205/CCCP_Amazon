@@ -1,0 +1,6 @@
+[allowlist]
+description = "Allow documented fake JWT example in API.md"
+
+commits = [
+  "4ea557a01dff28529ef26e48aa8d4e6df959cb7f"
+]
