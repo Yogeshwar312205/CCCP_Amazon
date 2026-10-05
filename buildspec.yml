@@ -1,0 +1,25 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo "Logging in to Amazon ECR..."
+      - aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 463605761271.dkr.ecr.ap-south-1.amazonaws.com
+
+  build:
+    commands:
+      - echo "Building frontend Docker image..."
+      - docker build -t 463605761271.dkr.ecr.ap-south-1.amazonaws.com/cccp-amazon-client:latest ./client
+
+      - echo "Building backend Docker image..."
+      - docker build -t 463605761271.dkr.ecr.ap-south-1.amazonaws.com/cccp-amazon-server:latest ./server
+
+  post_build:
+    commands:
+      - echo "Pushing frontend image..."
+      - docker push 463605761271.dkr.ecr.ap-south-1.amazonaws.com/cccp-amazon-client:latest
+
+      - echo "Pushing backend image..."
+      - docker push 463605761271.dkr.ecr.ap-south-1.amazonaws.com/cccp-amazon-server:latest
+
+      - echo "Docker images pushed successfully."
