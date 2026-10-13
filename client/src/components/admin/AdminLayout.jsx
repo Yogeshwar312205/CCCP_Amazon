@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import {
   LayoutDashboard,
   Package,
+  FolderTree,
   ShoppingBag,
   Boxes,
   RotateCcw,
@@ -20,6 +21,7 @@ const AdminLayout = () => {
   const navItems = [
     { to: '/admin', label: 'Dashboard & Analytics', icon: LayoutDashboard, end: true },
     { to: '/admin/products', label: 'Products Management', icon: Package },
+    { to: '/admin/categories', label: 'Categories Management', icon: FolderTree },
     { to: '/admin/orders', label: 'Orders & Fulfillment', icon: ShoppingBag },
     { to: '/admin/inventory', label: 'Inventory & Stock', icon: Boxes },
     { to: '/admin/returns', label: 'Returns & Refunds', icon: RotateCcw },

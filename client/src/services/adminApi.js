@@ -87,6 +87,28 @@ export const adminApi = {
     return res.data;
   },
 
+  // Categories
+  getCategories: async (params = {}) => {
+    const res = await api.get('/admin/categories', { params });
+    return res.data;
+  },
+  createCategory: async (categoryData) => {
+    const res = await api.post('/admin/categories', categoryData);
+    return res.data;
+  },
+  updateCategory: async (id, updateData) => {
+    const res = await api.put(`/admin/categories/${id}`, updateData);
+    return res.data;
+  },
+  toggleCategoryStatus: async (id) => {
+    const res = await api.patch(`/admin/categories/${id}/toggle-status`);
+    return res.data;
+  },
+  deleteCategory: async (id) => {
+    const res = await api.delete(`/admin/categories/${id}`);
+    return res.data;
+  },
+
   // Audit Logs (SUPER_ADMIN)
   getAuditLogs: async (params = {}) => {
     const res = await api.get('/admin/audit-logs', { params });

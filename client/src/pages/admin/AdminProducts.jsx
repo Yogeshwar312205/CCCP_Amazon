@@ -13,6 +13,9 @@ import {
   ChevronRight,
   Upload,
   Trash2,
+  FolderPlus,
+  FolderTree,
+  X,
 } from 'lucide-react';
 
 const AdminProducts = () => {
@@ -45,10 +48,56 @@ const AdminProducts = () => {
 
   const [selectedFiles, setSelectedFiles] = useState([]);
 
+  // Quick Category Creation State
+  const [showQuickCategoryModal, setShowQuickCategoryModal] = useState(false);
+  const [quickCategoryLoading, setQuickCategoryLoading] = useState(false);
+  const [quickCategoryError, setQuickCategoryError] = useState('');
+  const [quickCategoryData, setQuickCategoryData] = useState({
+    name: '',
+    parentId: '',
+    description: '',
+  });
+
   useEffect(() => {
     dispatch(fetchAdminProducts({ page, limit: 10, search: searchTerm }));
-    dispatch(fetchCategories());
+    dispatch(fetchCategories({ flat: true }));
   }, [dispatch, page, searchTerm]);
+
+  const handleQuickCreateCategory = async (e) => {
+    e.preventDefault();
+    setQuickCategoryLoading(true);
+    setQuickCategoryError('');
+
+    try {
+      const payload = {
+        name: quickCategoryData.name.trim(),
+        parentId: quickCategoryData.parentId ? parseInt(quickCategoryData.parentId, 10) : null,
+        description: quickCategoryData.description.trim() || null,
+        isActive: true,
+      };
+
+      const res = await adminApi.createCategory(payload);
+      const newCat = res.data;
+
+      // Refresh categories in redux
+      await dispatch(fetchCategories({ flat: true }));
+
+      // Automatically select newly created category in product form
+      setFormData((prev) => ({ ...prev, categoryId: newCat.id.toString() }));
+
+      // Reset and close quick modal
+      setQuickCategoryData({ name: '', parentId: '', description: '' });
+      setShowQuickCategoryModal(false);
+    } catch (err) {
+      setQuickCategoryError(
+        err.response?.data?.message ||
+        err.response?.data?.error?.message ||
+        'Failed to create category'
+      );
+    } finally {
+      setQuickCategoryLoading(false);
+    }
+  };
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -375,20 +424,51 @@ const AdminProducts = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Category *</label>
-                  <select
-                    required
-                    value={formData.categoryId}
-                    onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                    className="w-full text-xs border rounded-lg p-2.5 bg-white focus:ring-1 focus:ring-amazon-orange focus:border-amazon-orange"
-                  >
-                    <option value="">Select Category</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-gray-700">Category *</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQuickCategoryError('');
+                        setQuickCategoryData({ name: '', parentId: '', description: '' });
+                        setShowQuickCategoryModal(true);
+                      }}
+                      className="text-[11px] font-bold text-amazon-orange hover:text-amber-600 hover:underline flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" /> Add Category
+                    </button>
+                  </div>
+
+                  {categories.length === 0 ? (
+                    <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-800 flex items-center justify-between">
+                      <span>No categories found.</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setQuickCategoryError('');
+                          setQuickCategoryData({ name: '', parentId: '', description: '' });
+                          setShowQuickCategoryModal(true);
+                        }}
+                        className="font-bold underline text-amber-900 ml-2"
+                      >
+                        + Create Category
+                      </button>
+                    </div>
+                  ) : (
+                    <select
+                      required
+                      value={formData.categoryId}
+                      onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+                      className="w-full text-xs border rounded-lg p-2.5 bg-white focus:ring-1 focus:ring-amazon-orange focus:border-amazon-orange"
+                    >
+                      <option value="">Select Category</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.parent ? `↳ ${c.name} (${c.parent.name})` : c.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
 
                 <div>
@@ -531,6 +611,101 @@ const AdminProducts = () => {
                   className="px-5 py-2 bg-amazon-yellow hover:bg-yellow-400 disabled:opacity-50 text-gray-900 font-bold text-xs rounded-lg shadow"
                 >
                   {modalLoading ? 'Saving Product...' : 'Create Product'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Add Category Modal */}
+      {showQuickCategoryModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-5 border border-gray-100">
+            <div className="flex items-center justify-between pb-2 border-b border-gray-100 mb-3">
+              <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                <FolderPlus className="w-4 h-4 text-amazon-orange" />
+                Add New Category
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowQuickCategoryModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {quickCategoryError && (
+              <div className="p-2.5 bg-red-50 border border-red-200 text-red-700 text-[11px] rounded-lg mb-3">
+                {quickCategoryError}
+              </div>
+            )}
+
+            <form onSubmit={handleQuickCreateCategory} className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-700 mb-1">
+                  Category Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  value={quickCategoryData.name}
+                  onChange={(e) => setQuickCategoryData({ ...quickCategoryData, name: e.target.value })}
+                  placeholder="e.g., Electronics, Audio, Apparel"
+                  className="w-full text-xs border rounded-lg p-2 focus:ring-1 focus:ring-amazon-orange focus:border-amazon-orange"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-700 mb-1">
+                  Parent Category (Optional)
+                </label>
+                <select
+                  value={quickCategoryData.parentId}
+                  onChange={(e) => setQuickCategoryData({ ...quickCategoryData, parentId: e.target.value })}
+                  className="w-full text-xs border rounded-lg p-2 bg-white focus:ring-1 focus:ring-amazon-orange focus:border-amazon-orange"
+                >
+                  <option value="">None (Top-Level Category)</option>
+                  {categories
+                    .filter((c) => !c.parentId)
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-700 mb-1">
+                  Description (Optional)
+                </label>
+                <textarea
+                  rows={2}
+                  value={quickCategoryData.description}
+                  onChange={(e) => setQuickCategoryData({ ...quickCategoryData, description: e.target.value })}
+                  placeholder="Short category description..."
+                  className="w-full text-xs border rounded-lg p-2 focus:ring-1 focus:ring-amazon-orange focus:border-amazon-orange resize-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setShowQuickCategoryModal(false)}
+                  disabled={quickCategoryLoading}
+                  className="px-3 py-1.5 border rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={quickCategoryLoading}
+                  className="px-4 py-1.5 bg-amazon-yellow hover:bg-yellow-400 text-amazon-blue text-xs font-bold rounded-lg shadow-sm transition disabled:opacity-50"
+                >
+                  {quickCategoryLoading ? 'Creating...' : 'Save & Select'}
                 </button>
               </div>
             </form>

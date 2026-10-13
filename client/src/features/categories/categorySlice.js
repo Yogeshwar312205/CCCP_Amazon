@@ -3,9 +3,9 @@ import { categoryApi } from '../../services/categoryApi';
 
 export const fetchCategories = createAsyncThunk(
   'categories/fetchCategories',
-  async (_, { rejectWithValue }) => {
+  async (params = {}, { rejectWithValue }) => {
     try {
-      const data = await categoryApi.getCategories();
+      const data = await categoryApi.getCategories(params);
       return data.data.categories;
     } catch (error) {
       return rejectWithValue(

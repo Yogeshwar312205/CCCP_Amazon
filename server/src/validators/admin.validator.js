@@ -133,6 +133,31 @@ const createCouponSchema = z.object({
   }),
 });
 
+const createCategorySchema = z.object({
+  body: z.object({
+    name: z.string().trim().min(2, 'Name must be at least 2 characters').max(100),
+    slug: z.string().trim().optional(),
+    description: z.string().trim().optional().nullable(),
+    parentId: z.union([z.number().int().positive(), z.null()]).optional(),
+    displayOrder: z.number().int().optional().default(0),
+    isActive: z.boolean().optional().default(true),
+  }),
+});
+
+const updateCategorySchema = z.object({
+  params: z.object({
+    id: z.string().transform((val) => parseInt(val, 10)),
+  }),
+  body: z.object({
+    name: z.string().trim().min(2, 'Name must be at least 2 characters').max(100).optional(),
+    slug: z.string().trim().optional(),
+    description: z.string().trim().optional().nullable(),
+    parentId: z.union([z.number().int().positive(), z.null()]).optional(),
+    displayOrder: z.number().int().optional(),
+    isActive: z.boolean().optional(),
+  }),
+});
+
 module.exports = {
   createProductSchema,
   updateProductSchema,
@@ -140,4 +165,7 @@ module.exports = {
   updateOrderStatusSchema,
   processReturnSchema,
   createCouponSchema,
+  createCategorySchema,
+  updateCategorySchema,
 };
+

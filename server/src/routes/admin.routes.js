@@ -12,6 +12,8 @@ const {
   updateOrderStatusSchema,
   processReturnSchema,
   createCouponSchema,
+  createCategorySchema,
+  updateCategorySchema,
 } = require('../validators/admin.validator');
 
 // All admin routes require ADMIN or SUPER_ADMIN authorization
@@ -28,6 +30,13 @@ router.get('/products', AdminController.getProducts);
 router.post('/products', upload.array('images', 5), validate(createProductSchema), AdminController.createProduct);
 router.put('/products/:id', validate(updateProductSchema), AdminController.updateProduct);
 router.patch('/products/:id/toggle-status', AdminController.toggleProductStatus);
+
+// Categories
+router.get('/categories', AdminController.getCategories);
+router.post('/categories', validate(createCategorySchema), AdminController.createCategory);
+router.put('/categories/:id', validate(updateCategorySchema), AdminController.updateCategory);
+router.patch('/categories/:id/toggle-status', AdminController.toggleCategoryStatus);
+router.delete('/categories/:id', AdminController.deleteCategory);
 
 // Inventory
 router.get('/inventory', AdminController.getInventory);

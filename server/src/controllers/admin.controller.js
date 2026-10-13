@@ -4,6 +4,7 @@ const AdminInventoryService = require('../services/admin.inventory.service');
 const AdminOrderService = require('../services/admin.order.service');
 const AdminReturnService = require('../services/admin.return.service');
 const AdminCouponService = require('../services/admin.coupon.service');
+const AdminCategoryService = require('../services/admin.category.service');
 const AuditService = require('../services/audit.service');
 
 class AdminController {
@@ -150,6 +151,59 @@ class AdminController {
     try {
       const coupon = await AdminCouponService.toggleCouponStatus(parseInt(req.params.id, 10));
       res.json({ success: true, message: `Coupon ${coupon.isActive ? 'activated' : 'deactivated'}`, data: coupon });
+    } catch (err) { next(err); }
+  }
+
+  // Categories
+  static async getCategories(req, res, next) {
+    try {
+      const data = await AdminCategoryService.getCategories({
+        search: req.query.search,
+        flat: req.query.flat === 'true',
+      });
+      res.json({ success: true, data });
+    } catch (err) { next(err); }
+  }
+
+  static async createCategory(req, res, next) {
+    try {
+      const category = await AdminCategoryService.createCategory(req.body, req.user?.id);
+      res.status(201).json({ success: true, message: 'Category created successfully', data: category });
+    } catch (err) { next(err); }
+  }
+
+  static async updateCategory(req, res, next) {
+    try {
+      const category = await AdminCategoryService.updateCategory(
+        parseInt(req.params.id, 10),
+        req.body,
+        req.user?.id
+      );
+      res.json({ success: true, message: 'Category updated successfully', data: category });
+    } catch (err) { next(err); }
+  }
+
+  static async toggleCategoryStatus(req, res, next) {
+    try {
+      const category = await AdminCategoryService.toggleCategoryStatus(
+        parseInt(req.params.id, 10),
+        req.user?.id
+      );
+      res.json({
+        success: true,
+        message: `Category ${category.isActive ? 'activated' : 'deactivated'}`,
+        data: category,
+      });
+    } catch (err) { next(err); }
+  }
+
+  static async deleteCategory(req, res, next) {
+    try {
+      const result = await AdminCategoryService.deleteCategory(
+        parseInt(req.params.id, 10),
+        req.user?.id
+      );
+      res.json({ success: true, message: result.message });
     } catch (err) { next(err); }
   }
 

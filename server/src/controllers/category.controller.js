@@ -3,11 +3,12 @@ const CategoryService = require('../services/category.service');
 class CategoryController {
   static async getCategories(req, res, next) {
     try {
-      const tree = await CategoryService.getCategoryTree();
+      const flat = req.query.flat === 'true';
+      const categories = await CategoryService.getAllCategories({ flat });
       return res.status(200).json({
         success: true,
-        message: 'Category tree retrieved',
-        data: { categories: tree },
+        message: 'Categories retrieved successfully',
+        data: { categories },
       });
     } catch (error) {
       next(error);

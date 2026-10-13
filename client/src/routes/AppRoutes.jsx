@@ -13,6 +13,7 @@ import OrderDetail from '../pages/customer/OrderDetail';
 import Returns from '../pages/customer/Returns';
 import AdminDashboard from '../pages/admin/AdminDashboard';
 import AdminProducts from '../pages/admin/AdminProducts';
+import AdminCategories from '../pages/admin/AdminCategories';
 import AdminOrders from '../pages/admin/AdminOrders';
 import AdminInventory from '../pages/admin/AdminInventory';
 import AdminReturns from '../pages/admin/AdminReturns';
@@ -102,6 +103,7 @@ const AppRoutes = () => {
       >
         <Route index element={<AdminDashboard />} />
         <Route path="products" element={<AdminProducts />} />
+        <Route path="categories" element={<AdminCategories />} />
         <Route path="orders" element={<AdminOrders />} />
         <Route path="inventory" element={<AdminInventory />} />
         <Route path="returns" element={<AdminReturns />} />
