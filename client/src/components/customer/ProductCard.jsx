@@ -21,7 +21,12 @@ const ProductCard = ({ product }) => {
             alt={product.title}
             className="w-full h-48 object-contain group-hover:scale-105 transition duration-300"
           />
-          {product.isFeatured && (
+          {product.isBoosted && (
+            <span className="absolute top-2 left-2 bg-gray-700 text-white text-[10px] font-semibold px-2 py-0.5 rounded shadow opacity-80">
+              Sponsored
+            </span>
+          )}
+          {!product.isBoosted && product.isFeatured && (
             <span className="absolute top-2 left-2 bg-amazon-orange text-amazon-blue text-[10px] font-bold px-2 py-0.5 rounded shadow">
               Featured
             </span>
@@ -32,6 +37,12 @@ const ProductCard = ({ product }) => {
         <p className="text-[10px] text-gray-400 uppercase font-semibold">
           {product.brand || product.category?.name}
         </p>
+        {/* Seller attribution */}
+        {product.shop && (
+          <p className="text-[10px] text-blue-500 font-medium mb-0.5">
+            by {product.shop.name}
+          </p>
+        )}
 
         {/* Title */}
         <Link

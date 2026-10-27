@@ -26,6 +26,12 @@ const Notification = require('./Notification');
 const Return = require('./Return');
 const Refund = require('./Refund');
 const AuditLog = require('./AuditLog');
+// Multi-vendor marketplace models
+const Shop = require('./Shop');
+const SellerOrder = require('./SellerOrder');
+const ProductBoost = require('./ProductBoost');
+const CategoryCommission = require('./CategoryCommission');
+const PlatformSettings = require('./PlatformSettings');
 
 // 1. User Associations
 User.hasMany(Address, { foreignKey: 'user_id', as: 'addresses', onDelete: 'CASCADE' });
@@ -143,6 +149,36 @@ Coupon.hasMany(CouponUsage, { foreignKey: 'coupon_id', as: 'usages', onDelete: '
 CouponUsage.belongsTo(Coupon, { foreignKey: 'coupon_id', as: 'coupon' });
 CouponUsage.belongsTo(Order, { foreignKey: 'order_id', as: 'order', onDelete: 'CASCADE' });
 
+// ─── MULTI-VENDOR MARKETPLACE ASSOCIATIONS ────────────────────────────────────
+
+// 7. Shop Associations
+User.hasOne(Shop, { foreignKey: 'user_id', as: 'shop', onDelete: 'RESTRICT' });
+Shop.belongsTo(User, { foreignKey: 'user_id', as: 'owner' });
+
+Shop.hasMany(Product, { foreignKey: 'shop_id', as: 'products', onDelete: 'RESTRICT' });
+Product.belongsTo(Shop, { foreignKey: 'shop_id', as: 'shop' });
+
+// 8. SellerOrder Associations
+Order.hasMany(SellerOrder, { foreignKey: 'order_id', as: 'sellerOrders', onDelete: 'CASCADE' });
+SellerOrder.belongsTo(Order, { foreignKey: 'order_id', as: 'masterOrder' });
+
+Shop.hasMany(SellerOrder, { foreignKey: 'shop_id', as: 'sellerOrders', onDelete: 'RESTRICT' });
+SellerOrder.belongsTo(Shop, { foreignKey: 'shop_id', as: 'shop' });
+
+SellerOrder.hasMany(OrderItem, { foreignKey: 'seller_order_id', as: 'items' });
+OrderItem.belongsTo(SellerOrder, { foreignKey: 'seller_order_id', as: 'sellerOrder' });
+
+// 9. ProductBoost Associations
+Shop.hasMany(ProductBoost, { foreignKey: 'shop_id', as: 'boosts', onDelete: 'CASCADE' });
+ProductBoost.belongsTo(Shop, { foreignKey: 'shop_id', as: 'shop' });
+
+Product.hasMany(ProductBoost, { foreignKey: 'product_id', as: 'boosts', onDelete: 'CASCADE' });
+ProductBoost.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
+
+// 10. CategoryCommission Associations
+Category.hasOne(CategoryCommission, { foreignKey: 'category_id', as: 'commission', onDelete: 'CASCADE' });
+CategoryCommission.belongsTo(Category, { foreignKey: 'category_id', as: 'category' });
+
 module.exports = {
   sequelize,
   User,
@@ -172,4 +208,10 @@ module.exports = {
   Return,
   Refund,
   AuditLog,
+  // Multi-vendor marketplace
+  Shop,
+  SellerOrder,
+  ProductBoost,
+  CategoryCommission,
+  PlatformSettings,
 };

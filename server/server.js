@@ -8,6 +8,7 @@ const { sequelize } = require('./src/models');
 const routes = require('./src/routes');
 const errorHandler = require('./src/middlewares/error.middleware');
 const { globalLimiter } = require('./src/middlewares/rateLimiter.middleware');
+const { startScheduler } = require('./src/scheduler/escrow.scheduler');
 
 const app = express();
 
@@ -52,6 +53,8 @@ const startServer = async () => {
 
     app.listen(PORT, () => {
       logger.info(`🚀 Server running in ${env.NODE_ENV} mode on port ${PORT}`);
+      // Start background escrow settlement + boost expiry scheduler
+      startScheduler();
     });
   } catch (error) {
     logger.error('Unable to connect to the database:', error);

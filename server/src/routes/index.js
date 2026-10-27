@@ -11,6 +11,11 @@ const couponRoutes = require('./coupon.routes');
 const adminRoutes = require('./admin.routes');
 const notificationRoutes = require('./notification.routes');
 const healthRoutes = require('./health.routes');
+// Multi-vendor marketplace routes
+const shopRoutes = require('./shop.routes');
+const sellerRoutes = require('./seller.routes');
+const superadminRoutes = require('./superadmin.routes');
+const devRoutes = require('./dev.routes');
 
 const router = express.Router();
 
@@ -26,5 +31,10 @@ router.use('/coupons', couponRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/admin', adminRoutes);
 router.use('/health', healthRoutes);
+// Multi-vendor marketplace
+router.use('/shops', shopRoutes);
+router.use('/seller', sellerRoutes);
+router.use('/superadmin', superadminRoutes);
+router.use('/dev', devRoutes);
 
 module.exports = router;
