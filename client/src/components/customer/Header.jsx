@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, ShoppingCart, User, ShieldCheck, LogOut, Heart, MapPin, Package, RotateCcw } from 'lucide-react';
+import { Search, ShoppingCart, User, ShieldCheck, LogOut, Heart, MapPin, Package, RotateCcw, Store, Terminal, Crown } from 'lucide-react';
 import { logout } from '../../features/auth/authSlice';
 import { setFilter, fetchProducts } from '../../features/products/productSlice';
 import { fetchCategories } from '../../features/categories/categorySlice';
@@ -124,6 +124,36 @@ const Header = () => {
                   >
                     <ShieldCheck className="w-4 h-4" />
                     <span>Admin Dashboard</span>
+                  </Link>
+                )}
+
+                {user?.role === 'SELLER' && (
+                  <Link
+                    to="/seller"
+                    className="flex items-center space-x-2 px-4 py-2 text-xs hover:bg-gray-100 font-semibold text-blue-600"
+                  >
+                    <Store className="w-4 h-4" />
+                    <span>Seller Portal</span>
+                  </Link>
+                )}
+
+                {user?.role === 'SUPER_ADMIN' && (
+                  <Link
+                    to="/superadmin"
+                    className="flex items-center space-x-2 px-4 py-2 text-xs hover:bg-gray-100 font-semibold text-purple-600"
+                  >
+                    <Crown className="w-4 h-4" />
+                    <span>Business Portal</span>
+                  </Link>
+                )}
+
+                {user?.role === 'DEVELOPER' && (
+                  <Link
+                    to="/dev"
+                    className="flex items-center space-x-2 px-4 py-2 text-xs hover:bg-gray-100 font-semibold text-green-600"
+                  >
+                    <Terminal className="w-4 h-4" />
+                    <span>Dev Dashboard</span>
                   </Link>
                 )}
 
