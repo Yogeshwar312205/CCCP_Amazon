@@ -108,7 +108,7 @@ class CartService {
     }
 
     let availableStock = product.inventory?.stockQuantity ?? 10;
-    let variant = null;
+    let variant;
 
     if (variantId) {
       variant = await ProductVariant.findOne({

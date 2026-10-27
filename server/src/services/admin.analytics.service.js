@@ -1,4 +1,4 @@
-﻿const { Order, OrderItem, User, Product, Inventory, sequelize } = require('../models');
+﻿const { Order, OrderItem, User, Inventory, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 class AdminAnalyticsService {

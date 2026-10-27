@@ -1,8 +1,11 @@
 const { ProductQuestion, ProductAnswer, User } = require('../models');
+const paginate = require('../utils/paginate');
 
 class QuestionService {
-  static async getProductQuestions(productId) {
-    return await ProductQuestion.findAll({
+  static async getProductQuestions(productId, query = {}) {
+    const { limit, offset, buildMeta } = paginate(query);
+
+    const { count, rows } = await ProductQuestion.findAndCountAll({
       where: { productId },
       include: [
         { model: User, as: 'asker', attributes: ['firstName', 'lastName'] },
@@ -13,7 +16,12 @@ class QuestionService {
         },
       ],
       order: [['createdAt', 'DESC']],
+      limit,
+      offset,
+      distinct: true,
     });
+
+    return { questions: rows, pagination: buildMeta(count) };
   }
 
   static async askQuestion(userId, productId, questionText) {

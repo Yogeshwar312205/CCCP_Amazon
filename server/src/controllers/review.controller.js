@@ -4,11 +4,12 @@ class ReviewController {
   static async getReviews(req, res, next) {
     try {
       const { productId } = req.params;
-      const reviews = await ReviewService.getProductReviews(productId);
+      const result = await ReviewService.getProductReviews(productId, req.query);
       return res.status(200).json({
         success: true,
         message: 'Product reviews retrieved',
-        data: { reviews },
+        data: { reviews: result.reviews },
+        meta: { pagination: result.pagination },
       });
     } catch (error) {
       next(error);

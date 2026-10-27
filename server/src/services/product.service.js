@@ -17,7 +17,6 @@ class ProductService {
       maxPrice,
       brand,
       minRating,
-      inStockOnly,
       sort,
       page,
       limit,

@@ -11,6 +11,7 @@ const envSchema = z.object({
   DB_USER: z.string().default('root'),
   DB_PASSWORD: z.string().default(''),
   DB_NAME: z.string().default('cccp_amazon'),
+  CORS_ORIGIN: z.string().default('http://localhost:5173'),
   JWT_SECRET: z.string().min(16, 'JWT_SECRET must be at least 16 characters'),
   JWT_EXPIRES_IN: z.string().default('24h'),
   MAX_FILE_SIZE: z.string().default('5242880'),

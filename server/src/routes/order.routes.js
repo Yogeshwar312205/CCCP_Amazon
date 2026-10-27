@@ -3,8 +3,8 @@ const router = express.Router();
 const authenticate = require('../middlewares/auth.middleware');
 const authorize = require('../middlewares/rbac.middleware');
 const validate = require('../middlewares/validate.middleware');
-const { checkout, getOrders, getOrderById, cancelOrder, validateCoupon } = require('../controllers/order.controller');
-const { checkoutSchema, cancelOrderSchema, validateCouponSchema } = require('../validators/order.validator');
+const { checkout, getOrders, getOrderById, cancelOrder } = require('../controllers/order.controller');
+const { checkoutSchema, cancelOrderSchema } = require('../validators/order.validator');
 
 // All order routes require authentication
 router.use(authenticate);

@@ -13,7 +13,12 @@ const app = express();
 
 // Security and utility middlewares
 app.use(helmet());
-app.use(cors({ origin: '*' })); // Configure as needed for development/production
+app.use(cors({
+  origin: env.CORS_ORIGIN,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 app.use(globalLimiter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
