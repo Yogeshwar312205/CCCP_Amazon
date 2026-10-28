@@ -74,7 +74,14 @@ class AuthService {
 
   static generateToken(user) {
     return jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
+      {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        // shopId is embedded in the JWT for SELLER role so middleware can
+        // do lightweight ownership checks without an extra DB query
+        ...(user.role === 'SELLER' && user.shopId ? { shopId: user.shopId } : {}),
+      },
       env.JWT_SECRET,
       { expiresIn: env.JWT_EXPIRES_IN }
     );

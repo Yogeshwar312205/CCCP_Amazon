@@ -4,11 +4,12 @@ class QuestionController {
   static async getQuestions(req, res, next) {
     try {
       const { productId } = req.params;
-      const questions = await QuestionService.getProductQuestions(productId);
+      const result = await QuestionService.getProductQuestions(productId, req.query);
       return res.status(200).json({
         success: true,
         message: 'Product questions retrieved',
-        data: { questions },
+        data: { questions: result.questions },
+        meta: { pagination: result.pagination },
       });
     } catch (error) {
       next(error);

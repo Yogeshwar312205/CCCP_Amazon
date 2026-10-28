@@ -6,6 +6,8 @@ const {
   ProductVariant,
   ProductAttribute,
   Inventory,
+  Shop,
+  sequelize,
 } = require('../models');
 
 class ProductService {
@@ -17,7 +19,6 @@ class ProductService {
       maxPrice,
       brand,
       minRating,
-      inStockOnly,
       sort,
       page,
       limit,
@@ -70,7 +71,12 @@ class ProductService {
     }
 
     // Sorting strategy
-    let order = [['createdAt', 'DESC']];
+    // Default sort: sponsored products always float first, then by composite score
+    let order = [
+      [sequelize.literal('`Product`.`is_boosted`'), 'DESC'],
+      [sequelize.literal('(`Product`.`average_rating` * `Product`.`total_reviews`)'), 'DESC'],
+      ['createdAt', 'DESC'],
+    ];
     if (sort === 'price_asc') order = [['basePrice', 'ASC']];
     if (sort === 'price_desc') order = [['basePrice', 'DESC']];
     if (sort === 'rating') order = [['averageRating', 'DESC']];
@@ -170,6 +176,13 @@ class ProductService {
           model: Inventory,
           as: 'inventory',
           attributes: ['stockQuantity', 'lowStockThreshold'],
+        },
+        // Include seller shop info for storefront attribution
+        {
+          model: Shop,
+          as: 'shop',
+          attributes: ['id', 'name', 'slug', 'averageRating', 'logoUrl'],
+          required: false,
         },
       ],
     });

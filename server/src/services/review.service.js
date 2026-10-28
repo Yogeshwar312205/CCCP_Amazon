@@ -1,15 +1,23 @@
 const { Review, ReviewImage, Product, Order, OrderItem, User, sequelize } = require('../models');
+const paginate = require('../utils/paginate');
 
 class ReviewService {
-  static async getProductReviews(productId) {
-    return await Review.findAll({
+  static async getProductReviews(productId, query = {}) {
+    const { limit, offset, buildMeta } = paginate(query);
+
+    const { count, rows } = await Review.findAndCountAll({
       where: { productId, status: 'APPROVED' },
       include: [
         { model: User, as: 'author', attributes: ['firstName', 'lastName'] },
         { model: ReviewImage, as: 'images', attributes: ['imageUrl'] },
       ],
       order: [['createdAt', 'DESC']],
+      limit,
+      offset,
+      distinct: true,
     });
+
+    return { reviews: rows, pagination: buildMeta(count) };
   }
 
   static async addReview(userId, productId, reviewData, files = []) {

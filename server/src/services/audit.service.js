@@ -48,7 +48,8 @@ class AuditService {
         transaction ? { transaction } : undefined
       );
     } catch (err) {
-      console.error('AuditService log error (non-fatal):', err.message);
+      // Non-fatal: audit log failures must not break the main operation
+      process.stderr.write(`AuditService log error (non-fatal): ${err.message}\n`);
       return null;
     }
   }

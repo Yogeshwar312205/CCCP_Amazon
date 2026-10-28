@@ -1,5 +1,4 @@
 const { Notification } = require('../models');
-const { Op } = require('sequelize');
 
 class NotificationService {
   /**

@@ -44,6 +44,18 @@ const OrderItem = sequelize.define('order_items', {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false,
   },
+  // FK to the SellerOrder this item belongs to (null for legacy orders)
+  sellerOrderId: {
+    type: DataTypes.BIGINT.UNSIGNED,
+    allowNull: true,
+    field: 'seller_order_id',
+  },
+  // Denormalized for quick seller-scoped queries
+  shopId: {
+    type: DataTypes.BIGINT.UNSIGNED,
+    allowNull: true,
+    field: 'shop_id',
+  },
 }, {
   tableName: 'order_items',
   indexes: [

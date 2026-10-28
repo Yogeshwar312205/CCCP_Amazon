@@ -7,8 +7,29 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "test": "jest --runInBand --forceExit",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage --forceExit",
     "seed": "node seeders/seed.js",
     "migrate": "node scripts/migrate.js"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": ["**/tests/**/*.test.js"],
+    "collectCoverageFrom": [
+      "src/utils/**/*.js",
+      "src/services/**/*.js",
+      "src/middlewares/**/*.js",
+      "src/controllers/**/*.js"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "lines": 20
+      }
+    },
+    "testTimeout": 15000
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -25,6 +46,10 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "nodemon": "^3.1.0"
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.13.0",
+    "jest": "^30.5.2",
+    "nodemon": "^3.1.0",
+    "supertest": "^7.3.1"
   }
 }

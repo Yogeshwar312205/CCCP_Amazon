@@ -73,6 +73,19 @@ const Product = sequelize.define('products', {
     defaultValue: 0,
     field: 'total_reviews',
   },
+  // FK to the seller's shop — null for legacy platform-owned products
+  shopId: {
+    type: DataTypes.BIGINT.UNSIGNED,
+    allowNull: true,
+    field: 'shop_id',
+  },
+  // Set to true when a ProductBoost for this product is APPROVED and active
+  isBoosted: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+    field: 'is_boosted',
+  },
 }, {
   tableName: 'products',
   indexes: [

@@ -16,9 +16,9 @@ const {
   updateCategorySchema,
 } = require('../validators/admin.validator');
 
-// All admin routes require ADMIN or SUPER_ADMIN authorization
+// All admin routes require SELLER or SUPER_ADMIN authorization
 router.use(authenticate);
-router.use(authorize('ADMIN', 'SUPER_ADMIN'));
+router.use(authorize('SELLER', 'SUPER_ADMIN'));
 
 // Analytics
 router.get('/analytics/overview', AdminController.getOverview);

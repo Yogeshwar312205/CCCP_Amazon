@@ -1,4 +1,4 @@
-const { Coupon, CouponUsage, Op } = require('../models');
+const { Coupon, CouponUsage } = require('../models');
 
 class CouponService {
   static async validateCoupon(code, subtotal, userId) {
@@ -54,7 +54,7 @@ class CouponService {
     }
 
     // Calculate discount
-    let discountAmount = 0;
+    let discountAmount;
     if (coupon.discountType === 'PERCENTAGE') {
       discountAmount = (subtotal * parseFloat(coupon.discountValue)) / 100;
       if (coupon.maxDiscountAmount && discountAmount > parseFloat(coupon.maxDiscountAmount)) {

@@ -9,6 +9,7 @@ const { sequelize } = require('./src/models');
 const routes = require('./src/routes');
 const errorHandler = require('./src/middlewares/error.middleware');
 const { globalLimiter } = require('./src/middlewares/rateLimiter.middleware');
+const { startScheduler } = require('./src/scheduler/escrow.scheduler');
 
 const app = express();
 
@@ -18,7 +19,12 @@ app.set('trust proxy', 1);
 
 // Security and utility middlewares
 app.use(helmet());
-app.use(cors({ origin: '*' }));
+app.use(cors({
+  origin: env.CORS_ORIGIN,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 app.use(globalLimiter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -55,6 +61,8 @@ const startServer = async () => {
       logger.info(
         `🚀 Server running in ${env.NODE_ENV} mode on port ${PORT}`
       );
+      // Start background escrow settlement + boost expiry scheduler
+      startScheduler();
     });
   } catch (error) {
     logger.error('Unable to connect to the database:', error);

@@ -25,9 +25,9 @@ const formatUptime = (seconds) => {
  */
 router.get('/', async (req, res) => {
   const startTime = Date.now();
-  let dbStatus = 'DISCONNECTED';
   let dbLatencyMs = null;
   let isHealthy = false;
+  let dbStatus;
 
   try {
     const dbStart = Date.now();
@@ -37,7 +37,7 @@ router.get('/', async (req, res) => {
     isHealthy = true;
   } catch (err) {
     dbStatus = 'ERROR';
-    console.error('Healthcheck DB connection error:', err.message);
+    process.stderr.write(`Healthcheck DB error: ${err.message}\n`);
   }
 
   const memory = process.memoryUsage();

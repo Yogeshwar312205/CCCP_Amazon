@@ -34,13 +34,12 @@ async function migrate() {
     // 3. Optional Seeder
     if (process.argv.includes('--seed')) {
       console.log('\n[3/3] Running seeders...');
-      const seedDatabase = require('../seeders/seed');
-      if (typeof seedDatabase === 'function') {
-        await seedDatabase();
-        console.log('  ✓ Database seeded successfully.');
-      } else {
-        console.log('  ℹ Seed file executed.');
-      }
+      // Use the new multi-vendor seeder
+      const path = require('path');
+      const seedPath = path.join(__dirname, '../seeders/seed.js');
+      // The seeder calls process.exit() itself; we just require it here
+      require(seedPath);
+      return; // seeder controls process lifecycle
     } else {
       console.log('\n[3/3] Skipping seeders (use --seed flag to populate test accounts and products).');
     }
