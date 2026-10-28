@@ -13,6 +13,8 @@ class AdminInventoryService {
    * Get all inventory items with filtering
    */
   static async getInventory({ page = 1, limit = 15, lowStockOnly = false, search = '' }) {
+    page = Math.max(1, parseInt(page, 10) || 1);
+    limit = Math.max(1, parseInt(limit, 10) || 15);
     const offset = (page - 1) * limit;
     const where = {};
 

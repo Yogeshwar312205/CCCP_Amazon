@@ -21,10 +21,10 @@ const Header = () => {
 
   useEffect(() => {
     dispatch(fetchCategories());
-    if (isAuthenticated) {
+    if (isAuthenticated && user?.role === 'CUSTOMER') {
       dispatch(fetchCart());
     }
-  }, [dispatch, isAuthenticated]);
+  }, [dispatch, isAuthenticated, user?.role]);
 
   const handleSearch = (e) => {
     e.preventDefault();

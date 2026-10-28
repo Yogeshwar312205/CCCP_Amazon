@@ -14,6 +14,8 @@ class AdminReturnService {
    * List all return requests
    */
   static async getReturns({ page = 1, limit = 15, status = '' }) {
+    page = Math.max(1, parseInt(page, 10) || 1);
+    limit = Math.max(1, parseInt(limit, 10) || 15);
     const offset = (page - 1) * limit;
     const where = {};
     if (status) where.status = status;

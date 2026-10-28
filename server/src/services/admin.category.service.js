@@ -44,7 +44,13 @@ class AdminCategoryService {
    * Create a new category
    */
   static async createCategory(categoryData, adminId = null) {
-    let { name, slug, description, parentId, displayOrder, isActive } = categoryData;
+    let { name, slug } = categoryData;
+    const {
+      description,
+      parentId,
+      displayOrder,
+      isActive,
+    } = categoryData;
     if (!name || !name.trim()) {
       const error = new Error('Category name is required');
       error.statusCode = 400;
@@ -135,7 +141,7 @@ class AdminCategoryService {
     }
 
     if (categoryData.slug && categoryData.slug !== category.slug) {
-      let slug = categoryData.slug
+      const slug = categoryData.slug
         .trim()
         .toLowerCase()
         .replace(/[^\w\s-]/g, '')

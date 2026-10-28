@@ -73,8 +73,8 @@ class ProductService {
     // Sorting strategy
     // Default sort: sponsored products always float first, then by composite score
     let order = [
-      [sequelize.literal('`Product`.`is_boosted`'), 'DESC'],
-      [sequelize.literal('(`Product`.`average_rating` * `Product`.`total_reviews`)'), 'DESC'],
+      [sequelize.literal('`isBoosted`'), 'DESC'],
+      [sequelize.literal('(`averageRating` * `totalReviews`)'), 'DESC'],
       ['createdAt', 'DESC'],
     ];
     if (sort === 'price_asc') order = [['basePrice', 'ASC']];

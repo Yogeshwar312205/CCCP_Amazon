@@ -14,6 +14,8 @@ class AdminProductService {
    * List products with pagination and filters
    */
   static async getProducts({ page = 1, limit = 10, search = '', categoryId = null, isActive = null }) {
+    page = Math.max(1, parseInt(page, 10) || 1);
+    limit = Math.max(1, parseInt(limit, 10) || 10);
     const offset = (page - 1) * limit;
     const where = {};
 

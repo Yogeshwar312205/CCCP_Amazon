@@ -18,6 +18,8 @@ class AdminOrderService {
    * List all orders with filters
    */
   static async getOrders({ page = 1, limit = 10, status = '', search = '' }) {
+    page = Math.max(1, parseInt(page, 10) || 1);
+    limit = Math.max(1, parseInt(limit, 10) || 10);
     const offset = (page - 1) * limit;
     const where = {};
 

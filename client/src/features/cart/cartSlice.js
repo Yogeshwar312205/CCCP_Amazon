@@ -3,7 +3,14 @@ import { cartApi } from '../../services/cartApi';
 
 export const fetchCart = createAsyncThunk(
   'cart/fetchCart',
-  async (_, { rejectWithValue }) => {
+  async (_, { rejectWithValue, getState }) => {
+    if (
+      !getState().auth.isAuthenticated
+      || getState().auth.user?.role !== 'CUSTOMER'
+    ) {
+      return rejectWithValue('Authentication required');
+    }
+
     try {
       const data = await cartApi.getCart();
       return data.data;

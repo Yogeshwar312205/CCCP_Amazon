@@ -16,6 +16,8 @@ export default [
         exports: 'writable',
         Buffer: 'readonly',
         console: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
       },
     },
     rules: {

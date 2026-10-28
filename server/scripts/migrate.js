@@ -9,6 +9,60 @@
 const { sequelize } = require('../src/models');
 const logger = require('../config/logger');
 
+async function ensureProductMarketplaceColumns() {
+  const [columns] = await sequelize.query(`
+    SELECT COLUMN_NAME
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'products'
+      AND COLUMN_NAME IN ('shop_id', 'is_boosted')
+  `);
+  const existingColumns = new Set(columns.map(({ COLUMN_NAME: name }) => name));
+
+  if (!existingColumns.has('shop_id')) {
+    await sequelize.query(`
+      ALTER TABLE products
+      ADD COLUMN shop_id BIGINT UNSIGNED NULL
+    `);
+    console.log('  ✓ Added products.shop_id.');
+  }
+
+  if (!existingColumns.has('is_boosted')) {
+    await sequelize.query(`
+      ALTER TABLE products
+      ADD COLUMN is_boosted BOOLEAN NOT NULL DEFAULT FALSE
+    `);
+    console.log('  ✓ Added products.is_boosted.');
+  }
+}
+
+async function ensureOrderItemMarketplaceColumns() {
+  const [columns] = await sequelize.query(`
+    SELECT COLUMN_NAME
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'order_items'
+      AND COLUMN_NAME IN ('seller_order_id', 'shop_id')
+  `);
+  const existingColumns = new Set(columns.map(({ COLUMN_NAME: name }) => name));
+
+  if (!existingColumns.has('seller_order_id')) {
+    await sequelize.query(`
+      ALTER TABLE order_items
+      ADD COLUMN seller_order_id BIGINT UNSIGNED NULL
+    `);
+    console.log('  ✓ Added order_items.seller_order_id.');
+  }
+
+  if (!existingColumns.has('shop_id')) {
+    await sequelize.query(`
+      ALTER TABLE order_items
+      ADD COLUMN shop_id BIGINT UNSIGNED NULL
+    `);
+    console.log('  ✓ Added order_items.shop_id.');
+  }
+}
+
 async function migrate() {
   console.log('=====================================================');
   console.log('  CCCP Amazon — Production Database Migration Runner  ');
@@ -25,6 +79,10 @@ async function migrate() {
     // Safe sync without destructive drops
     await sequelize.sync();
     console.log('  ✓ Schema synchronized cleanly. All 27 models verified.');
+
+    // Add columns introduced by the marketplace model without altering existing data.
+    await ensureProductMarketplaceColumns();
+    await ensureOrderItemMarketplaceColumns();
 
     // Verify key tables
     const [tables] = await sequelize.query('SHOW TABLES');

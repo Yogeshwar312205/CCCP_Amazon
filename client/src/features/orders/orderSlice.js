@@ -3,7 +3,11 @@ import { orderApi } from '../../services/orderApi';
 
 export const fetchOrders = createAsyncThunk(
   'orders/fetchOrders',
-  async ({ page, limit } = {}, { rejectWithValue }) => {
+  async ({ page, limit } = {}, { rejectWithValue, getState }) => {
+    if (!getState().auth.isAuthenticated) {
+      return rejectWithValue('Authentication required');
+    }
+
     try {
       const data = await orderApi.getOrders(page, limit);
       return data.data;
