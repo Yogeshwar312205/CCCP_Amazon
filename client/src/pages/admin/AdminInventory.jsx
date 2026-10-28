@@ -1,5 +1,6 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import AdminScopeSelector from '../../components/admin/AdminScopeSelector';
 import { useSearchParams } from 'react-router-dom';
 import { fetchAdminInventory } from '../../features/admin/adminSlice';
 import { adminApi } from '../../services/adminApi';
@@ -17,12 +18,14 @@ import {
 
 const AdminInventory = () => {
   const dispatch = useDispatch();
+  const { user } = useSelector((state) => state.auth);
   const [searchParams] = useSearchParams();
   const initialLowStock = searchParams.get('lowStock') === 'true';
 
   const { inventory, inventoryPagination, inventoryLoading } = useSelector((state) => state.admin);
 
   const [page, setPage] = useState(1);
+  const [selectedAdminId, setSelectedAdminId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [lowStockOnly, setLowStockOnly] = useState(initialLowStock);
 
@@ -41,15 +44,17 @@ const AdminInventory = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
 
   useEffect(() => {
+    if (user?.role === 'SUPER_ADMIN' && !selectedAdminId) return;
     dispatch(
       fetchAdminInventory({
         page,
         limit: 15,
         lowStockOnly,
         search: searchTerm,
+        ...(user?.role === 'SUPER_ADMIN' ? { adminId: selectedAdminId } : {}),
       })
     );
-  }, [dispatch, page, lowStockOnly, searchTerm]);
+  }, [dispatch, page, lowStockOnly, searchTerm, selectedAdminId, user?.role]);
 
   const handleOpenAdjustModal = (item) => {
     setSelectedItem(item);
@@ -80,6 +85,7 @@ const AdminInventory = () => {
           limit: 15,
           lowStockOnly,
           search: searchTerm,
+          ...(user?.role === 'SUPER_ADMIN' ? { adminId: selectedAdminId } : {}),
         })
       );
     } catch (err) {
@@ -105,6 +111,7 @@ const AdminInventory = () => {
 
   return (
     <div className="space-y-6">
+      <AdminScopeSelector selectedAdminId={selectedAdminId} onSelect={(id) => { setSelectedAdminId(id); setPage(1); }} />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

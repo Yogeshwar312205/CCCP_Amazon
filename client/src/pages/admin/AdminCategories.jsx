@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
 import { adminApi } from '../../services/adminApi';
+import AdminScopeSelector from '../../components/admin/AdminScopeSelector';
 import {
   FolderTree,
   Plus,
@@ -15,10 +17,12 @@ import {
 } from 'lucide-react';
 
 const AdminCategories = () => {
+  const { user } = useSelector((state) => state.auth);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedAdminId, setSelectedAdminId] = useState(null);
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
@@ -44,7 +48,15 @@ const AdminCategories = () => {
     try {
       setLoading(true);
       setError('');
-      const response = await adminApi.getCategories({ flat: true, search: searchTerm });
+      if (user?.role === 'SUPER_ADMIN' && !selectedAdminId) {
+        setCategories([]);
+        return;
+      }
+      const response = await adminApi.getCategories({
+        flat: true,
+        search: searchTerm,
+        ...(user?.role === 'SUPER_ADMIN' ? { adminId: selectedAdminId } : {}),
+      });
       setCategories(response.data || []);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load categories');
@@ -55,7 +67,7 @@ const AdminCategories = () => {
 
   useEffect(() => {
     loadCategories();
-  }, [searchTerm]);
+  }, [searchTerm, selectedAdminId, user?.role]);
 
   const handleOpenCreateModal = () => {
     setEditingCategory(null);
@@ -98,6 +110,7 @@ const AdminCategories = () => {
         description: formData.description.trim() || null,
         displayOrder: parseInt(formData.displayOrder, 10) || 0,
         isActive: formData.isActive,
+        ...(user?.role === 'SUPER_ADMIN' && selectedAdminId ? { adminId: selectedAdminId } : {}),
       };
 
       if (editingCategory) {
@@ -156,6 +169,7 @@ const AdminCategories = () => {
 
   return (
     <div className="space-y-6">
+      <AdminScopeSelector selectedAdminId={selectedAdminId} onSelect={setSelectedAdminId} />
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

@@ -42,11 +42,18 @@ const Category = sequelize.define('categories', {
     defaultValue: 0,
     field: 'display_order',
   },
+  createdBy: {
+    type: DataTypes.BIGINT.UNSIGNED,
+    allowNull: true,
+    field: 'created_by',
+    references: { model: 'users', key: 'id' },
+  },
 }, {
   tableName: 'categories',
   indexes: [
     { unique: true, fields: ['slug'] },
     { fields: ['parent_id'] },
+    { fields: ['created_by'] },
   ],
 });
 

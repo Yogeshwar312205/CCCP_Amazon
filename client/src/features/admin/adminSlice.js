@@ -103,6 +103,19 @@ export const fetchAdminCoupons = createAsyncThunk(
   }
 );
 
+// Admin Management Thunk (SUPER_ADMIN)
+export const fetchAdminAccounts = createAsyncThunk(
+  'admin/fetchAdminAccounts',
+  async (params = {}, { rejectWithValue }) => {
+    try {
+      const data = await adminApi.getAdmins(params);
+      return { admins: data.data, pagination: data.pagination };
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || 'Failed to fetch admin accounts');
+    }
+  }
+);
+
 // Audit Logs Thunk (SUPER_ADMIN)
 export const fetchAuditLogs = createAsyncThunk(
   'admin/fetchAuditLogs',
@@ -146,6 +159,11 @@ const initialState = {
   // Coupons
   coupons: [],
   couponsLoading: false,
+
+  // Admin Accounts (SUPER_ADMIN)
+  adminAccounts: [],
+  adminAccountsPagination: null,
+  adminAccountsLoading: false,
 
   // Audit Logs (SUPER_ADMIN)
   auditLogs: [],
@@ -254,6 +272,20 @@ const adminSlice = createSlice({
       })
       .addCase(fetchAdminCoupons.rejected, (state, action) => {
         state.couponsLoading = false;
+        state.error = action.payload;
+      })
+
+      // Admin Accounts (SUPER_ADMIN)
+      .addCase(fetchAdminAccounts.pending, (state) => {
+        state.adminAccountsLoading = true;
+      })
+      .addCase(fetchAdminAccounts.fulfilled, (state, action) => {
+        state.adminAccountsLoading = false;
+        state.adminAccounts = action.payload.admins;
+        state.adminAccountsPagination = action.payload.pagination;
+      })
+      .addCase(fetchAdminAccounts.rejected, (state, action) => {
+        state.adminAccountsLoading = false;
         state.error = action.payload;
       })
 

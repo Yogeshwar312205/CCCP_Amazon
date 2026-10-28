@@ -14,7 +14,7 @@ const Payment = sequelize.define('payments', {
     field: 'order_id',
   },
   paymentMethod: {
-    type: DataTypes.ENUM('CREDIT_CARD', 'DEBIT_CARD', 'PAYPAL', 'MOCK_GATEWAY'),
+    type: DataTypes.ENUM('CREDIT_CARD', 'DEBIT_CARD', 'UPI', 'NET_BANKING', 'WALLET', 'PAYPAL', 'MOCK_GATEWAY'),
     allowNull: false,
     defaultValue: 'MOCK_GATEWAY',
     field: 'payment_method',

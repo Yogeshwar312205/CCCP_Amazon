@@ -1,5 +1,6 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import AdminScopeSelector from '../../components/admin/AdminScopeSelector';
 import { fetchAdminOrders } from '../../features/admin/adminSlice';
 import { adminApi } from '../../services/adminApi';
 import {
@@ -17,9 +18,11 @@ import {
 
 const AdminOrders = () => {
   const dispatch = useDispatch();
+  const { user } = useSelector((state) => state.auth);
   const { orders, ordersPagination, ordersLoading } = useSelector((state) => state.admin);
 
   const [page, setPage] = useState(1);
+  const [selectedAdminId, setSelectedAdminId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
 
@@ -33,15 +36,17 @@ const AdminOrders = () => {
   const [updateError, setUpdateError] = useState('');
 
   useEffect(() => {
+    if (user?.role === 'SUPER_ADMIN' && !selectedAdminId) return;
     dispatch(
       fetchAdminOrders({
         page,
         limit: 10,
         status: selectedStatus,
         search: searchTerm,
+        ...(user?.role === 'SUPER_ADMIN' ? { adminId: selectedAdminId } : {}),
       })
     );
-  }, [dispatch, page, selectedStatus, searchTerm]);
+  }, [dispatch, page, selectedStatus, searchTerm, selectedAdminId, user?.role]);
 
   const handleOpenStatusModal = (order) => {
     setSelectedOrder(order);
@@ -72,6 +77,7 @@ const AdminOrders = () => {
           limit: 10,
           status: selectedStatus,
           search: searchTerm,
+          ...(user?.role === 'SUPER_ADMIN' ? { adminId: selectedAdminId } : {}),
         })
       );
     } catch (err) {
@@ -102,6 +108,7 @@ const AdminOrders = () => {
 
   return (
     <div className="space-y-6">
+      <AdminScopeSelector selectedAdminId={selectedAdminId} onSelect={(id) => { setSelectedAdminId(id); setPage(1); }} />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -144,7 +151,6 @@ const AdminOrders = () => {
             <option value="SHIPPED">SHIPPED</option>
             <option value="DELIVERED">DELIVERED</option>
             <option value="CANCELLED">CANCELLED</option>
-            <option value="RETURNED">RETURNED</option>
           </select>
         </div>
       </div>

@@ -14,6 +14,8 @@ import {
   AlertCircle,
   ChevronRight,
   Plus,
+  ArrowLeft,
+  Home,
 } from 'lucide-react';
 
 const Checkout = () => {
@@ -27,6 +29,13 @@ const Checkout = () => {
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('CREDIT_CARD');
   const [simulateFailure, setSimulateFailure] = useState(false);
+  const [paymentDetails, setPaymentDetails] = useState({
+    cardholderName: '',
+    cardNumber: '',
+    expiryDate: '',
+    cvv: '',
+    upiId: '',
+  });
 
   // Coupon state
   const [couponCode, setCouponCode] = useState('');
@@ -90,6 +99,16 @@ const Checkout = () => {
   const taxAmount = parseFloat((taxableAmount * 0.08).toFixed(2));
   const finalTotal = parseFloat((taxableAmount + shippingFee + taxAmount).toFixed(2));
 
+  const updatePaymentDetail = (field, value) => {
+    setPaymentDetails((current) => ({ ...current, [field]: value }));
+  };
+
+  const formatCardNumber = (value) =>
+    value
+      .replace(/\D/g, '')
+      .slice(0, 16)
+      .replace(/(\d{4})(?=\d)/g, '$1 ');
+
   const handlePlaceOrder = async () => {
     if (!selectedAddressId) {
       setLocalError('Please select or add a shipping address.');
@@ -97,6 +116,24 @@ const Checkout = () => {
     }
     if (!items || items.length === 0) {
       setLocalError('Your cart is empty.');
+      return;
+    }
+
+    if (paymentMethod === 'CREDIT_CARD' || paymentMethod === 'DEBIT_CARD') {
+      const cardNumber = paymentDetails.cardNumber.replace(/\s/g, '');
+      if (
+        !paymentDetails.cardholderName.trim() ||
+        !/^\d{16}$/.test(cardNumber) ||
+        !/^\d{2}\/\d{2}$/.test(paymentDetails.expiryDate) ||
+        !/^\d{3,4}$/.test(paymentDetails.cvv)
+      ) {
+        setLocalError('Enter valid demo card details: name, 16-digit card number, MM/YY expiry, and CVV.');
+        return;
+      }
+    }
+
+    if (paymentMethod === 'UPI' && !/^[\w.-]+@[\w.-]+$/.test(paymentDetails.upiId.trim())) {
+      setLocalError('Enter a valid demo UPI ID, for example demo@upi.');
       return;
     }
 
@@ -112,6 +149,12 @@ const Checkout = () => {
 
     const action = await dispatch(placeOrder(checkoutData));
     if (placeOrder.fulfilled.match(action)) {
+      if (action.payload.paymentStatus === 'FAILED') {
+        setLocalError(
+          'Demo payment was declined. Your order is pending and no charge was made. You can try checkout again.'
+        );
+        return;
+      }
       dispatch(clearCart());
       navigate(`/orders/${action.payload.orderId}?success=true`);
     }
@@ -123,10 +166,10 @@ const Checkout = () => {
         <h2 className="text-2xl font-bold mb-4">Your Shopping Cart is empty</h2>
         <p className="text-gray-600 mb-6">Add items to your cart before proceeding to checkout.</p>
         <Link
-          to="/"
+          to="/cart"
           className="inline-block bg-amazon-yellow hover:bg-yellow-400 text-gray-900 font-semibold px-6 py-2 rounded-lg"
         >
-          Continue Shopping
+          Back to Cart
         </Link>
       </div>
     );
@@ -137,10 +180,23 @@ const Checkout = () => {
       <div className="max-w-6xl mx-auto px-4">
         {/* Header */}
         <div className="flex items-center justify-between pb-6 border-b border-gray-300 mb-6">
-          <h1 className="text-3xl font-semibold text-gray-800">Checkout ({items.length} items)</h1>
-          <div className="flex items-center text-sm text-gray-600">
-            <ShieldCheck className="w-5 h-5 text-green-600 mr-1" />
-            <span>Secure 256-Bit SSL Checkout</span>
+          <div className="flex flex-wrap items-center gap-4">
+            <Link
+              to="/cart"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-700 hover:text-amazon-orange"
+            >
+              <ArrowLeft className="w-4 h-4" /> Back to Cart
+            </Link>
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-700 hover:text-amazon-orange"
+            >
+              <Home className="w-4 h-4" /> Store Home
+            </Link>
+            <div className="flex items-center text-sm text-gray-600">
+              <ShieldCheck className="w-5 h-5 text-green-600 mr-1" />
+              <span>Secure 256-Bit SSL Checkout</span>
+            </div>
           </div>
         </div>
 
@@ -234,6 +290,7 @@ const Checkout = () => {
                   { id: 'CREDIT_CARD', label: 'Credit Card (Mock Visa / MasterCard / Amex)' },
                   { id: 'DEBIT_CARD', label: 'Debit Card (Instant mock settlement)' },
                   { id: 'UPI', label: 'UPI / Instant QR (Simulated)' },
+                  { id: 'NET_BANKING', label: 'Net Banking (Demo authorization)' },
                   { id: 'WALLET', label: 'Amazon Pay Balance / Wallet' },
                 ].map((pm) => (
                   <label
@@ -258,7 +315,87 @@ const Checkout = () => {
                 ))}
               </div>
 
-              {/* Simulation options */}
+              {(paymentMethod === 'CREDIT_CARD' || paymentMethod === 'DEBIT_CARD') && (
+                <div className="mt-4 p-4 rounded-lg border border-blue-200 bg-blue-50 space-y-3">
+                  <div className="flex items-start gap-2 text-xs text-blue-800">
+                    <ShieldCheck className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <span>
+                      <strong>Demo payment only.</strong> No real charge will be made. Use
+                      4111 1111 1111 1111, any future MM/YY date, and any 3-digit CVV.
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Cardholder name"
+                    value={paymentDetails.cardholderName}
+                    onChange={(e) => updatePaymentDetail('cardholderName', e.target.value)}
+                    autoComplete="cc-name"
+                    className="w-full text-sm px-3 py-2 border rounded-md focus:ring-1 focus:ring-amazon-orange focus:border-amazon-orange"
+                  />
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="Card number"
+                    value={paymentDetails.cardNumber}
+                    onChange={(e) => updatePaymentDetail('cardNumber', formatCardNumber(e.target.value))}
+                    autoComplete="cc-number"
+                    className="w-full text-sm px-3 py-2 border rounded-md focus:ring-1 focus:ring-amazon-orange focus:border-amazon-orange"
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="MM/YY"
+                      value={paymentDetails.expiryDate}
+                      onChange={(e) => updatePaymentDetail('expiryDate', e.target.value.replace(/[^\d/]/g, '').slice(0, 5))}
+                      autoComplete="cc-exp"
+                      className="text-sm px-3 py-2 border rounded-md focus:ring-1 focus:ring-amazon-orange focus:border-amazon-orange"
+                    />
+                    <input
+                      type="password"
+                      inputMode="numeric"
+                      placeholder="CVV"
+                      value={paymentDetails.cvv}
+                      onChange={(e) => updatePaymentDetail('cvv', e.target.value.replace(/\D/g, '').slice(0, 4))}
+                      autoComplete="cc-csc"
+                      className="text-sm px-3 py-2 border rounded-md focus:ring-1 focus:ring-amazon-orange focus:border-amazon-orange"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {paymentMethod === 'UPI' && (
+                <div className="mt-4 p-4 rounded-lg border border-blue-200 bg-blue-50 space-y-3">
+                  <div className="flex items-start gap-2 text-xs text-blue-800 select-none">
+                    <ShieldCheck className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <span>
+                      <strong>Demo UPI payment.</strong> No real payment request is sent.
+                      Enter a demo UPI ID below, such as <code>demo@upi</code>.
+                    </span>
+                  </div>
+                  <label htmlFor="demo-upi-id" className="block text-xs font-semibold text-gray-700">
+                    Demo UPI ID
+                  </label>
+                  <input
+                    id="demo-upi-id"
+                    name="demoUpiId"
+                    type="text"
+                    inputMode="email"
+                    autoComplete="off"
+                    spellCheck="false"
+                    aria-label="Demo UPI ID"
+                    placeholder="demo@upi"
+                    value={paymentDetails.upiId}
+                    onChange={(e) => updatePaymentDetail('upiId', e.target.value)}
+                    onInput={(e) => updatePaymentDetail('upiId', e.currentTarget.value)}
+                    readOnly={false}
+                    disabled={false}
+                    tabIndex={0}
+                    className="relative z-10 block w-full bg-white text-gray-900 text-sm px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amazon-orange focus:border-amazon-orange pointer-events-auto"
+                  />
+                </div>
+              )}
+
               <div className="mt-4 pt-4 border-t border-gray-100 flex items-center">
                 <input
                   type="checkbox"
@@ -268,7 +405,7 @@ const Checkout = () => {
                   className="rounded text-red-600 focus:ring-red-500 mr-2"
                 />
                 <label htmlFor="simulateFailure" className="text-xs text-gray-600 cursor-pointer">
-                  Simulate Payment Gateway Failure (Order will be placed in PENDING state)
+                  Test a declined demo payment (the order remains pending and no charge is made)
                 </label>
               </div>
             </div>

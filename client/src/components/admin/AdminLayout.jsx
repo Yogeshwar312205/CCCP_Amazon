@@ -11,6 +11,7 @@ import {
   Tag,
   ArrowLeft,
   ShieldCheck,
+  Users,
   FileText,
   Settings,
 } from 'lucide-react';
@@ -25,14 +26,14 @@ const AdminLayout = () => {
     { to: '/admin/orders', label: 'Orders & Fulfillment', icon: ShoppingBag },
     { to: '/admin/inventory', label: 'Inventory & Stock', icon: Boxes },
     { to: '/admin/returns', label: 'Returns & Refunds', icon: RotateCcw },
-    { to: '/admin/coupons', label: 'Coupons & Promos', icon: Tag },
   ];
 
   if (user?.role === 'SUPER_ADMIN') {
+    navItems.push({ to: '/admin/coupons', label: 'Coupons & Promos', icon: Tag });
+    navItems.push({ to: '/admin/admins', label: 'Admin Management', icon: Users });
     navItems.push({ to: '/admin/audit-logs', label: 'Audit Logs (Root)', icon: FileText });
+    navItems.push({ to: '/admin/settings', label: 'Store Settings', icon: Settings });
   }
-
-  navItems.push({ to: '/admin/settings', label: 'Store Settings', icon: Settings });
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col md:flex-row">

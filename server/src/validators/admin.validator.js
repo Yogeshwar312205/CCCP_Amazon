@@ -66,7 +66,18 @@ const updateProductSchema = z.object({
   params: z.object({
     id: z.string().transform((val) => parseInt(val, 10)),
   }),
-  body: z.object({
+  body: z.preprocess((raw) => {
+    if (!raw || typeof raw !== 'object') return raw;
+    const body = { ...raw };
+    if (typeof body.categoryId === 'string') body.categoryId = parseInt(body.categoryId, 10);
+    if (typeof body.basePrice === 'string') body.basePrice = parseFloat(body.basePrice);
+    if (typeof body.salePrice === 'string') {
+      body.salePrice = body.salePrice === '' ? null : parseFloat(body.salePrice);
+    }
+    if (typeof body.isFeatured === 'string') body.isFeatured = body.isFeatured === 'true';
+    if (typeof body.isActive === 'string') body.isActive = body.isActive !== 'false';
+    return body;
+  }, z.object({
     title: z.string().trim().min(3).optional(),
     sku: z.string().trim().min(3).optional(),
     brand: z.string().trim().optional(),
@@ -77,7 +88,7 @@ const updateProductSchema = z.object({
     salePrice: z.number().positive().optional().nullable(),
     isFeatured: z.boolean().optional(),
     isActive: z.boolean().optional(),
-  }),
+  })),
 });
 
 const inventoryAdjustSchema = z.object({
@@ -158,6 +169,30 @@ const updateCategorySchema = z.object({
   }),
 });
 
+const createAdminSchema = z.object({
+  body: z.object({
+    firstName: z.string().trim().min(2, 'First name must be at least 2 characters'),
+    lastName: z.string().trim().min(2, 'Last name must be at least 2 characters'),
+    email: z.string().trim().email('Invalid email address format'),
+    phone: z.string().trim().max(20).optional().nullable(),
+    password: z.string().min(8, 'Password must be at least 8 characters')
+      .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+      .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+      .regex(/[0-9]/, 'Password must contain at least one digit'),
+    isActive: z.boolean().optional().default(true),
+    role: z.literal('ADMIN').optional(),
+  }),
+});
+
+const updateAdminStatusSchema = z.object({
+  params: z.object({
+    id: z.string().transform((val) => parseInt(val, 10)),
+  }),
+  body: z.object({
+    isActive: z.boolean({ required_error: 'isActive is required' }),
+  }),
+});
+
 module.exports = {
   createProductSchema,
   updateProductSchema,
@@ -167,5 +202,6 @@ module.exports = {
   createCouponSchema,
   createCategorySchema,
   updateCategorySchema,
+  createAdminSchema,
+  updateAdminStatusSchema,
 };
-

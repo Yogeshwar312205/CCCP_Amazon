@@ -2,7 +2,7 @@
 import { Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchOrders } from '../../features/orders/orderSlice';
-import { Package, Clock, AlertCircle, ChevronRight } from 'lucide-react';
+import { Package, Clock, AlertCircle, ChevronRight, Home } from 'lucide-react';
 
 const Orders = () => {
   const dispatch = useDispatch();
@@ -37,12 +37,20 @@ const Orders = () => {
         {/* Breadcrumb / Title */}
         <div className="flex items-center justify-between pb-6 border-b border-gray-200 mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Your Orders</h1>
-          <Link
-            to="/returns"
-            className="text-sm text-blue-600 hover:underline font-medium"
-          >
-            View Returns & Refunds &rarr;
-          </Link>
+          <div className="flex flex-wrap items-center justify-end gap-4">
+            <Link
+              to="/returns"
+              className="text-sm text-blue-600 hover:underline font-medium"
+            >
+              View Returns & Refunds &rarr;
+            </Link>
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1.5 text-sm text-gray-700 hover:text-amazon-orange font-semibold"
+            >
+              <Home className="w-4 h-4" /> Back to Store
+            </Link>
+          </div>
         </div>
 
         {loading && (

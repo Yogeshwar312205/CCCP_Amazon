@@ -6,6 +6,10 @@ const path = require('path');
 const env = require('./config/env');
 const logger = require('./config/logger');
 const { sequelize } = require('./src/models');
+const ensureProductOwnershipColumns = require('./src/utils/ensureProductOwnershipColumns');
+const ensurePaymentMethods = require('./src/utils/ensurePaymentMethods');
+const ensureCategoryOwnershipColumn = require('./src/utils/ensureCategoryOwnershipColumn');
+const backfillLegacyAdminOwnership = require('./src/utils/backfillLegacyAdminOwnership');
 const routes = require('./src/routes');
 const errorHandler = require('./src/middlewares/error.middleware');
 const { globalLimiter } = require('./src/middlewares/rateLimiter.middleware');
@@ -45,6 +49,15 @@ const startServer = async () => {
     // Verify database connection
     await sequelize.authenticate();
     logger.info('Database connection established successfully.');
+
+    await ensureProductOwnershipColumns();
+    logger.info('Ensured product ownership column exists for admin-scoped product access.');
+    await ensurePaymentMethods();
+    logger.info('Ensured demo payment methods are supported.');
+    await ensureCategoryOwnershipColumn();
+    logger.info('Ensured category ownership column exists.');
+    await backfillLegacyAdminOwnership();
+    logger.info('Backfilled legacy product and category ownership to the Super Admin.');
 
     // Synchronize Sequelize models
     await sequelize.sync();

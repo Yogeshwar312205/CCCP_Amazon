@@ -4,6 +4,7 @@ const {
   Payment,
   User,
   Product,
+  ProductVariant,
   ProductImage,
   Inventory,
   InventoryTransaction,
@@ -14,10 +15,24 @@ const { Op } = require('sequelize');
 const AuditService = require('./audit.service');
 
 class AdminOrderService {
+  static ensureOrderAccess(order, currentUser) {
+    if (
+      currentUser?.role === 'ADMIN' &&
+      !order.items?.some((item) => item.product?.createdBy === currentUser.id)
+    ) {
+      const error = new Error('Access denied. You can only manage orders containing your products.');
+      error.statusCode = 403;
+      error.code = 'ORDER_ACCESS_DENIED';
+      throw error;
+    }
+  }
+
   /**
    * List all orders with filters
    */
-  static async getOrders({ page = 1, limit = 10, status = '', search = '' }) {
+  static async getOrders({ page = 1, limit = 10, status = '', search = '', adminId = null }, currentUser = null) {
+    page = Math.max(parseInt(page, 10) || 1, 1);
+    limit = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100);
     const offset = (page - 1) * limit;
     const where = {};
 
@@ -44,9 +59,21 @@ class AdminOrderService {
           model: OrderItem,
           as: 'items',
           attributes: ['id', 'productName', 'quantity', 'unitPrice', 'subtotal'],
+          required: currentUser?.role === 'ADMIN' || (currentUser?.role === 'SUPER_ADMIN' && adminId),
+          include: [{
+            model: Product,
+            as: 'product',
+            attributes: ['id', 'createdBy'],
+            where: currentUser?.role === 'ADMIN'
+              ? { createdBy: currentUser.id }
+              : currentUser?.role === 'SUPER_ADMIN' && adminId
+                ? { createdBy: parseInt(adminId, 10) }
+                : undefined,
+          }],
         },
       ],
       distinct: true,
+      subQuery: false,
     });
 
     return {
@@ -63,7 +90,7 @@ class AdminOrderService {
   /**
    * Get single order detail
    */
-  static async getOrderById(orderId) {
+  static async getOrderById(orderId, currentUser = null) {
     const order = await Order.findByPk(orderId, {
       include: [
         { model: User, as: 'user', attributes: ['id', 'firstName', 'lastName', 'email', 'phone'] },
@@ -76,6 +103,7 @@ class AdminOrderService {
               model: Product,
               as: 'product',
               attributes: ['id', 'title', 'slug'],
+              where: currentUser?.role === 'ADMIN' ? { createdBy: currentUser.id } : undefined,
               include: [{ model: ProductImage, as: 'images', attributes: ['imageUrl', 'isPrimary'] }],
             },
           ],
@@ -89,19 +117,28 @@ class AdminOrderService {
       throw error;
     }
 
+    this.ensureOrderAccess(order, currentUser);
     return order;
   }
 
   /**
    * Update Order Status & Fulfillment Tracking
    */
-  static async updateOrderStatus(orderId, { status, carrier, trackingNumber, notes }, adminId) {
+  static async updateOrderStatus(orderId, { status, carrier, trackingNumber, notes }, currentUser) {
     const transaction = await sequelize.transaction();
 
     try {
       const order = await Order.findByPk(orderId, {
         include: [
-          { model: OrderItem, as: 'items' },
+          {
+            model: OrderItem,
+            as: 'items',
+            include: [{
+              model: Product,
+              as: 'product',
+              attributes: ['id', 'createdBy'],
+            }],
+          },
           { model: Payment, as: 'payment' },
         ],
         transaction,
@@ -113,7 +150,26 @@ class AdminOrderService {
         throw error;
       }
 
+      this.ensureOrderAccess(order, currentUser);
+      const adminId = currentUser.id;
       const previousStatus = order.status;
+
+      const allowedTransitions = {
+        PENDING: ['PENDING', 'PROCESSING', 'CANCELLED'],
+        PROCESSING: ['PROCESSING', 'SHIPPED', 'CANCELLED'],
+        SHIPPED: ['SHIPPED', 'DELIVERED'],
+        DELIVERED: ['DELIVERED'],
+        CANCELLED: ['CANCELLED'],
+        RETURNED: ['RETURNED'],
+      };
+
+      if (!allowedTransitions[previousStatus]?.includes(status)) {
+        const error = new Error(`Cannot change order status from ${previousStatus} to ${status}`);
+        error.statusCode = 400;
+        error.code = 'INVALID_ORDER_TRANSITION';
+        throw error;
+      }
+
       order.status = status;
 
       if (status === 'SHIPPED') {
@@ -138,6 +194,13 @@ class AdminOrderService {
           if (inventory) {
             inventory.stockQuantity += item.quantity;
             await inventory.save({ transaction });
+
+            if (item.variantId) {
+              await ProductVariant.update(
+                { stockQuantity: inventory.stockQuantity },
+                { where: { id: item.variantId }, transaction }
+              );
+            }
 
             await InventoryTransaction.create(
               {

@@ -21,13 +21,19 @@ export const adminApi = {
     return res.data;
   },
   createProduct: async (productData) => {
-    const res = await api.post('/admin/products', productData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const config =
+      typeof FormData !== 'undefined' && productData instanceof FormData
+        ? { headers: { 'Content-Type': undefined } }
+        : undefined;
+    const res = await api.post('/admin/products', productData, config);
     return res.data;
   },
   updateProduct: async (id, updateData) => {
-    const res = await api.put(`/admin/products/${id}`, updateData);
+    const config =
+      typeof FormData !== 'undefined' && updateData instanceof FormData
+        ? { headers: { 'Content-Type': undefined } }
+        : undefined;
+    const res = await api.put(`/admin/products/${id}`, updateData, config);
     return res.data;
   },
   toggleProductStatus: async (id) => {
@@ -106,6 +112,20 @@ export const adminApi = {
   },
   deleteCategory: async (id) => {
     const res = await api.delete(`/admin/categories/${id}`);
+    return res.data;
+  },
+
+  // Admin Management (SUPER_ADMIN)
+  getAdmins: async (params = {}) => {
+    const res = await api.get('/admin/admins', { params });
+    return res.data;
+  },
+  createAdmin: async (adminData) => {
+    const res = await api.post('/admin/admins', adminData);
+    return res.data;
+  },
+  updateAdminStatus: async (id, payload) => {
+    const res = await api.patch(`/admin/admins/${id}/status`, payload);
     return res.data;
   },
 

@@ -3,11 +3,27 @@ const { Op } = require('sequelize');
 const AuditService = require('./audit.service');
 
 class AdminCategoryService {
+  static getOwnerId(currentUser, adminId) {
+    if (currentUser?.role === 'ADMIN') return currentUser.id;
+    if (currentUser?.role === 'SUPER_ADMIN' && adminId) return parseInt(adminId, 10);
+    return null;
+  }
+
+  static ensureCategoryAccess(category, currentUser) {
+    if (currentUser?.role === 'ADMIN' && category.createdBy !== currentUser.id) {
+      const error = new Error('Access denied. You can only manage your own categories.');
+      error.statusCode = 403;
+      error.code = 'CATEGORY_ACCESS_DENIED';
+      throw error;
+    }
+  }
+
   /**
    * List all categories (flat or tree) with product count and parent info
    */
-  static async getCategories({ search = '', flat = false } = {}) {
-    const where = {};
+  static async getCategories({ search = '', flat = false, adminId = null } = {}, currentUser = null) {
+    const ownerId = this.getOwnerId(currentUser, adminId);
+    const where = ownerId ? { createdBy: ownerId } : {};
     if (search && search.trim()) {
       where[Op.or] = [
         { name: { [Op.like]: `%${search.trim()}%` } },
@@ -43,7 +59,10 @@ class AdminCategoryService {
   /**
    * Create a new category
    */
-  static async createCategory(categoryData, adminId = null) {
+  static async createCategory(categoryData, currentUser = null) {
+    const adminId = currentUser?.role === 'SUPER_ADMIN' && categoryData.adminId
+      ? parseInt(categoryData.adminId, 10)
+      : currentUser?.id ?? null;
     let { name, slug, description, parentId, displayOrder, isActive } = categoryData;
     if (!name || !name.trim()) {
       const error = new Error('Category name is required');
@@ -89,6 +108,7 @@ class AdminCategoryService {
       parentId: parentId ? parseInt(parentId, 10) : null,
       displayOrder: displayOrder !== undefined ? parseInt(displayOrder, 10) : 0,
       isActive: isActive !== undefined ? isActive : true,
+      createdBy: adminId,
     });
 
     await AuditService.log({
@@ -105,13 +125,15 @@ class AdminCategoryService {
   /**
    * Update category
    */
-  static async updateCategory(id, categoryData, adminId = null) {
+  static async updateCategory(id, categoryData, currentUser = null) {
+    const adminId = currentUser?.id ?? null;
     const category = await Category.findByPk(id);
     if (!category) {
       const error = new Error('Category not found');
       error.statusCode = 404;
       throw error;
     }
+    this.ensureCategoryAccess(category, currentUser);
 
     const oldValues = {
       name: category.name,
@@ -180,13 +202,15 @@ class AdminCategoryService {
   /**
    * Toggle category active status
    */
-  static async toggleCategoryStatus(id, adminId = null) {
+  static async toggleCategoryStatus(id, currentUser = null) {
+    const adminId = currentUser?.id ?? null;
     const category = await Category.findByPk(id);
     if (!category) {
       const error = new Error('Category not found');
       error.statusCode = 404;
       throw error;
     }
+    this.ensureCategoryAccess(category, currentUser);
 
     const oldStatus = category.isActive;
     category.isActive = !category.isActive;
@@ -207,13 +231,15 @@ class AdminCategoryService {
   /**
    * Delete category
    */
-  static async deleteCategory(id, adminId = null) {
+  static async deleteCategory(id, currentUser = null) {
+    const adminId = currentUser?.id ?? null;
     const category = await Category.findByPk(id);
     if (!category) {
       const error = new Error('Category not found');
       error.statusCode = 404;
       throw error;
     }
+    this.ensureCategoryAccess(category, currentUser);
 
     const productCount = await Product.count({ where: { categoryId: id } });
     if (productCount > 0) {

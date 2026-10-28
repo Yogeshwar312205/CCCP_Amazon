@@ -14,6 +14,8 @@ const {
   createCouponSchema,
   createCategorySchema,
   updateCategorySchema,
+  createAdminSchema,
+  updateAdminStatusSchema,
 } = require('../validators/admin.validator');
 
 // All admin routes require ADMIN or SUPER_ADMIN authorization
@@ -28,7 +30,7 @@ router.get('/analytics/top-products', AdminController.getTopProducts);
 // Products
 router.get('/products', AdminController.getProducts);
 router.post('/products', upload.array('images', 5), validate(createProductSchema), AdminController.createProduct);
-router.put('/products/:id', validate(updateProductSchema), AdminController.updateProduct);
+router.put('/products/:id', upload.array('images', 5), validate(updateProductSchema), AdminController.updateProduct);
 router.patch('/products/:id/toggle-status', AdminController.toggleProductStatus);
 
 // Categories
@@ -53,9 +55,14 @@ router.get('/returns', AdminController.getReturns);
 router.put('/returns/:id', validate(processReturnSchema), AdminController.processReturn);
 
 // Coupons
-router.get('/coupons', AdminController.getCoupons);
-router.post('/coupons', validate(createCouponSchema), AdminController.createCoupon);
-router.patch('/coupons/:id/toggle-status', AdminController.toggleCouponStatus);
+router.get('/coupons', authorize('SUPER_ADMIN'), AdminController.getCoupons);
+router.post('/coupons', authorize('SUPER_ADMIN'), validate(createCouponSchema), AdminController.createCoupon);
+router.patch('/coupons/:id/toggle-status', authorize('SUPER_ADMIN'), AdminController.toggleCouponStatus);
+
+// Admin Management (SUPER_ADMIN ONLY)
+router.get('/admins', authorize('SUPER_ADMIN'), AdminController.getAdmins);
+router.post('/admins', authorize('SUPER_ADMIN'), validate(createAdminSchema), AdminController.createAdmin);
+router.patch('/admins/:id/status', authorize('SUPER_ADMIN'), validate(updateAdminStatusSchema), AdminController.updateAdminStatus);
 
 // Audit Logs (SUPER_ADMIN ONLY)
 router.get('/audit-logs', authorize('SUPER_ADMIN'), AdminController.getAuditLogs);

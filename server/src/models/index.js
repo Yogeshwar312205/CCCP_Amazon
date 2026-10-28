@@ -52,6 +52,11 @@ Notification.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 User.hasMany(ProductQuestion, { foreignKey: 'user_id', as: 'questions', onDelete: 'CASCADE' });
 ProductQuestion.belongsTo(User, { foreignKey: 'user_id', as: 'asker' });
 
+User.hasMany(Product, { foreignKey: 'created_by', as: 'createdProducts', onDelete: 'SET NULL' });
+Product.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+User.hasMany(Category, { foreignKey: 'created_by', as: 'createdCategories', onDelete: 'SET NULL' });
+Category.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+
 User.hasMany(ProductAnswer, { foreignKey: 'user_id', as: 'answers', onDelete: 'CASCADE' });
 ProductAnswer.belongsTo(User, { foreignKey: 'user_id', as: 'answerer' });
 
@@ -79,6 +84,7 @@ Product.hasMany(ProductAttribute, { foreignKey: 'product_id', as: 'attributes', 
 ProductAttribute.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
 
 Product.hasOne(Inventory, { foreignKey: 'product_id', as: 'inventory', onDelete: 'CASCADE' });
+Product.hasMany(Inventory, { foreignKey: 'product_id', as: 'inventories', onDelete: 'CASCADE' });
 Inventory.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
 
 ProductVariant.hasOne(Inventory, { foreignKey: 'variant_id', as: 'inventory', onDelete: 'CASCADE' });

@@ -19,6 +19,7 @@ import AdminInventory from '../pages/admin/AdminInventory';
 import AdminReturns from '../pages/admin/AdminReturns';
 import AdminCoupons from '../pages/admin/AdminCoupons';
 import AuditLogsAdmin from '../pages/admin/AuditLogsAdmin';
+import AdminManagement from '../pages/admin/AdminManagement';
 import SettingsAdmin from '../pages/admin/SettingsAdmin';
 import AdminLayout from '../components/admin/AdminLayout';
 import ProtectedRoute from './ProtectedRoute';
@@ -107,9 +108,38 @@ const AppRoutes = () => {
         <Route path="orders" element={<AdminOrders />} />
         <Route path="inventory" element={<AdminInventory />} />
         <Route path="returns" element={<AdminReturns />} />
-        <Route path="coupons" element={<AdminCoupons />} />
-        <Route path="audit-logs" element={<AuditLogsAdmin />} />
-        <Route path="settings" element={<SettingsAdmin />} />
+        <Route
+          path="coupons"
+          element={
+            <AdminRoute superAdminOnly>
+              <AdminCoupons />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="admins"
+          element={
+            <AdminRoute superAdminOnly>
+              <AdminManagement />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="audit-logs"
+          element={
+            <AdminRoute superAdminOnly>
+              <AuditLogsAdmin />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="settings"
+          element={
+            <AdminRoute superAdminOnly>
+              <SettingsAdmin />
+            </AdminRoute>
+          }
+        />
       </Route>
     </Routes>
   );

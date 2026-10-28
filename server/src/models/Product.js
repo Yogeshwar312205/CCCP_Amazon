@@ -73,6 +73,15 @@ const Product = sequelize.define('products', {
     defaultValue: 0,
     field: 'total_reviews',
   },
+  createdBy: {
+    type: DataTypes.BIGINT.UNSIGNED,
+    allowNull: true,
+    field: 'created_by',
+    references: {
+      model: 'users',
+      key: 'id',
+    },
+  },
 }, {
   tableName: 'products',
   indexes: [
@@ -80,6 +89,7 @@ const Product = sequelize.define('products', {
     { unique: true, fields: ['sku'] },
     { fields: ['category_id'] },
     { fields: ['brand'] },
+    { fields: ['created_by'] },
     { fields: ['is_active', 'is_featured'] },
   ],
 });

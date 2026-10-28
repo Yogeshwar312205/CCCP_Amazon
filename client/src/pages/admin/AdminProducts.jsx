@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { fetchAdminProducts } from '../../features/admin/adminSlice';
 import { adminApi } from '../../services/adminApi';
 import { fetchCategories } from '../../features/categories/categorySlice';
+import AdminScopeSelector from '../../components/admin/AdminScopeSelector';
 import {
   Package,
   Plus,
@@ -20,12 +21,20 @@ import {
 
 const AdminProducts = () => {
   const dispatch = useDispatch();
+  const { user } = useSelector((state) => state.auth);
   const { products, productsPagination, productsLoading } = useSelector((state) => state.admin);
   const { categories } = useSelector((state) => state.categories);
 
   const [page, setPage] = useState(1);
+  const [selectedAdminId, setSelectedAdminId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [editData, setEditData] = useState({});
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState('');
+  const [editFiles, setEditFiles] = useState([]);
+  const [editFilePreviews, setEditFilePreviews] = useState([]);
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState('');
   const [modalFieldErrors, setModalFieldErrors] = useState([]);
@@ -59,9 +68,15 @@ const AdminProducts = () => {
   });
 
   useEffect(() => {
-    dispatch(fetchAdminProducts({ page, limit: 10, search: searchTerm }));
+    if (user?.role === 'SUPER_ADMIN' && !selectedAdminId) return;
+    dispatch(fetchAdminProducts({
+      page,
+      limit: 10,
+      search: searchTerm,
+      ...(user?.role === 'SUPER_ADMIN' ? { adminId: selectedAdminId } : {}),
+    }));
     dispatch(fetchCategories({ flat: true }));
-  }, [dispatch, page, searchTerm]);
+  }, [dispatch, page, searchTerm, selectedAdminId, user?.role]);
 
   const handleQuickCreateCategory = async (e) => {
     e.preventDefault();
@@ -114,6 +129,71 @@ const AdminProducts = () => {
     }
   };
 
+  const handleOpenEdit = (product) => {
+    setEditingProduct(product);
+    setEditData({
+      title: product.title || '',
+      sku: product.sku || '',
+      brand: product.brand || '',
+      categoryId: product.categoryId || product.category?.id || '',
+      basePrice: product.basePrice ?? '',
+      salePrice: product.salePrice ?? '',
+      shortDescription: product.shortDescription || '',
+      description: product.description || '',
+      isFeatured: Boolean(product.isFeatured),
+      isActive: Boolean(product.isActive),
+    });
+    setEditFiles([]);
+    setEditFilePreviews([]);
+    setEditError('');
+  };
+
+  useEffect(() => {
+    const previews = editFiles.map((file) => URL.createObjectURL(file));
+    setEditFilePreviews(previews);
+    return () => previews.forEach((preview) => URL.revokeObjectURL(preview));
+  }, [editFiles]);
+
+  const handleEditProduct = async (e) => {
+    e.preventDefault();
+    if (!editingProduct) return;
+    setEditLoading(true);
+    setEditError('');
+
+    try {
+      const updatePayload = {
+        title: editData.title.trim(),
+        sku: editData.sku.trim(),
+        brand: editData.brand.trim() || undefined,
+        categoryId: parseInt(editData.categoryId, 10),
+        basePrice: parseFloat(editData.basePrice),
+        salePrice: editData.salePrice === '' ? null : parseFloat(editData.salePrice),
+        shortDescription: editData.shortDescription.trim() || undefined,
+        description: editData.description.trim(),
+        isFeatured: editData.isFeatured,
+        isActive: editData.isActive,
+      };
+      if (editFiles.length > 0) {
+        const formDataPayload = new FormData();
+        Object.entries(updatePayload).forEach(([key, value]) => {
+          if (value !== undefined) formDataPayload.append(key, value);
+        });
+        editFiles.forEach((file) => formDataPayload.append('images', file));
+        await adminApi.updateProduct(editingProduct.id, formDataPayload);
+      } else {
+        await adminApi.updateProduct(editingProduct.id, updatePayload);
+      }
+      setEditingProduct(null);
+      await dispatch(fetchAdminProducts({ page, limit: 10, search: searchTerm })).unwrap();
+    } catch (err) {
+      setEditError(
+        err.response?.data?.message || err.response?.data?.error?.message || 'Failed to update product'
+      );
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
   const handleAddVariant = () => {
     setVariants([
       ...variants,
@@ -151,6 +231,9 @@ const AdminProducts = () => {
       if (formData.salePrice) data.append('salePrice', parseFloat(formData.salePrice));
       data.append('shortDescription', formData.shortDescription);
       data.append('description', formData.description);
+      if (user?.role === 'SUPER_ADMIN' && selectedAdminId) {
+        data.append('adminId', selectedAdminId);
+      }
 
       // Add variants
       const formattedVariants = variants.map((v) => ({
@@ -201,6 +284,7 @@ const AdminProducts = () => {
 
   return (
     <div className="space-y-6">
+      <AdminScopeSelector selectedAdminId={selectedAdminId} onSelect={(id) => { setSelectedAdminId(id); setPage(1); }} />
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -279,7 +363,14 @@ const AdminProducts = () => {
                       <td className="px-5 py-3 flex items-center gap-3">
                         <div className="w-12 h-12 bg-gray-50 border rounded flex items-center justify-center overflow-hidden flex-shrink-0">
                           {primaryImg ? (
-                            <img src={primaryImg} alt={p.title} className="object-contain max-h-full" />
+                            <img
+                              src={primaryImg}
+                              alt={p.title}
+                              className="object-contain max-h-full"
+                              onError={(event) => {
+                                event.currentTarget.style.display = 'none';
+                              }}
+                            />
                           ) : (
                             <Package className="w-5 h-5 text-gray-300" />
                           )}
@@ -312,6 +403,12 @@ const AdminProducts = () => {
                         </span>
                       </td>
                       <td className="px-5 py-3 text-right">
+                        <button
+                          onClick={() => handleOpenEdit(p)}
+                          className="text-xs font-semibold px-2.5 py-1 rounded border text-blue-600 border-blue-200 hover:bg-blue-50 transition mr-2"
+                        >
+                          Edit
+                        </button>
                         <button
                           onClick={() => handleToggleStatus(p.id)}
                           className={`text-xs font-semibold px-2.5 py-1 rounded border transition ${
@@ -611,6 +708,130 @@ const AdminProducts = () => {
                   className="px-5 py-2 bg-amazon-yellow hover:bg-yellow-400 disabled:opacity-50 text-gray-900 font-bold text-xs rounded-lg shadow"
                 >
                   {modalLoading ? 'Saving Product...' : 'Create Product'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {editingProduct && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full p-6 my-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Edit Product</h2>
+              <button type="button" onClick={() => setEditingProduct(null)} className="text-gray-400 hover:text-gray-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {editError && <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg mb-4">{editError}</div>}
+            <form onSubmit={handleEditProduct} className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              {[
+                ['title', 'Product Title', 'text'],
+                ['sku', 'SKU', 'text'],
+                ['brand', 'Brand', 'text'],
+                ['basePrice', 'Base Price', 'number'],
+                ['salePrice', 'Sale Price', 'number'],
+              ].map(([field, label, type]) => (
+                <label key={field} className="block font-semibold text-gray-700">
+                  {label}
+                  <input
+                    type={type}
+                    step={type === 'number' ? '0.01' : undefined}
+                    value={editData[field]}
+                    onChange={(e) => setEditData({ ...editData, [field]: e.target.value })}
+                    required={field !== 'brand' && field !== 'salePrice'}
+                    className="w-full mt-1 border rounded-lg p-2.5 font-normal"
+                  />
+                </label>
+              ))}
+              <label className="block font-semibold text-gray-700">
+                Category
+                <select
+                  required
+                  value={editData.categoryId}
+                  onChange={(e) => setEditData({ ...editData, categoryId: e.target.value })}
+                  className="w-full mt-1 border rounded-lg p-2.5 bg-white font-normal"
+                >
+                  <option value="">Select Category</option>
+                  {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+                </select>
+              </label>
+              <label className="block font-semibold text-gray-700 sm:col-span-2">
+                Short Description
+                <input
+                  value={editData.shortDescription}
+                  onChange={(e) => setEditData({ ...editData, shortDescription: e.target.value })}
+                  className="w-full mt-1 border rounded-lg p-2.5 font-normal"
+                />
+              </label>
+              <label className="block font-semibold text-gray-700 sm:col-span-2">
+                Description
+                <textarea
+                  required
+                  rows={4}
+                  value={editData.description}
+                  onChange={(e) => setEditData({ ...editData, description: e.target.value })}
+                  className="w-full mt-1 border rounded-lg p-2.5 font-normal resize-none"
+                />
+              </label>
+              <label className="block font-semibold text-gray-700 sm:col-span-2">
+                Product Images
+                {editingProduct.images?.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2 mb-2">
+                    {editingProduct.images.map((image) => (
+                      <div key={image.id} className="w-20 h-20 border rounded-lg bg-gray-50 p-1">
+                        <img
+                          src={image.imageUrl}
+                          alt={image.altText || editingProduct.title}
+                          className="w-full h-full object-contain"
+                          onError={(event) => {
+                            event.currentTarget.alt = 'Image unavailable';
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  onChange={(e) => setEditFiles(Array.from(e.target.files || []))}
+                  className="w-full mt-1 border rounded-lg p-2.5 font-normal"
+                />
+                <span className="block mt-1 text-[11px] font-normal text-gray-500">
+                  Select up to 5 images to replace the current gallery. Leave empty to keep existing images.
+                </span>
+                {editFiles.length > 0 && (
+                  <>
+                    <span className="block mt-1 text-[11px] font-normal text-blue-600">
+                      {editFiles.length} new image{editFiles.length === 1 ? '' : 's'} selected. These will replace the current gallery.
+                    </span>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {editFilePreviews.map((preview, index) => (
+                        <div key={preview} className="w-20 h-20 border rounded-lg bg-gray-50 p-1">
+                          <img src={preview} alt={`Selected product image ${index + 1}`} className="w-full h-full object-contain" />
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </label>
+              <div className="sm:col-span-2 flex gap-5">
+                <label className="flex items-center gap-2 font-semibold">
+                  <input type="checkbox" checked={editData.isFeatured} onChange={(e) => setEditData({ ...editData, isFeatured: e.target.checked })} />
+                  Featured
+                </label>
+                <label className="flex items-center gap-2 font-semibold">
+                  <input type="checkbox" checked={editData.isActive} onChange={(e) => setEditData({ ...editData, isActive: e.target.checked })} />
+                  Active
+                </label>
+              </div>
+              <div className="sm:col-span-2 flex justify-end gap-2 pt-2 border-t">
+                <button type="button" onClick={() => setEditingProduct(null)} className="px-4 py-2 border rounded-lg font-semibold">Cancel</button>
+                <button type="submit" disabled={editLoading} className="px-4 py-2 bg-amazon-yellow rounded-lg font-bold disabled:opacity-50">
+                  {editLoading ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </form>

@@ -7,6 +7,10 @@
  */
 
 const { sequelize } = require('../src/models');
+const ensureProductOwnershipColumns = require('../src/utils/ensureProductOwnershipColumns');
+const ensurePaymentMethods = require('../src/utils/ensurePaymentMethods');
+const ensureCategoryOwnershipColumn = require('../src/utils/ensureCategoryOwnershipColumn');
+const backfillLegacyAdminOwnership = require('../src/utils/backfillLegacyAdminOwnership');
 const logger = require('../config/logger');
 
 async function migrate() {
@@ -20,8 +24,18 @@ async function migrate() {
     await sequelize.authenticate();
     console.log('  ✓ Connected to database successfully.');
 
-    // 2. Synchronize Models
-    console.log('\n[2/3] Synchronizing Sequelize models with MySQL schema...');
+    // 2. Ensure admin ownership columns exist before model sync
+    console.log('\n[2/3] Ensuring product ownership schema is present...');
+    await ensureProductOwnershipColumns();
+    console.log('  ✓ Product ownership column and index are present.');
+    await ensurePaymentMethods();
+    console.log('  ✓ Demo payment methods are present.');
+    await ensureCategoryOwnershipColumn();
+    console.log('  ✓ Category ownership column is present.');
+    await backfillLegacyAdminOwnership();
+    console.log('  ✓ Legacy product and category ownership was assigned to the Super Admin.');
+
+    console.log('\n[3/3] Synchronizing Sequelize models with MySQL schema...');
     // Safe sync without destructive drops
     await sequelize.sync();
     console.log('  ✓ Schema synchronized cleanly. All 27 models verified.');

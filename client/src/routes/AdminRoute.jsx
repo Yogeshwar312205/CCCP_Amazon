@@ -2,7 +2,7 @@ import React from 'react';
 import { useSelector } from 'react-redux';
 import { Navigate } from 'react-router-dom';
 
-const AdminRoute = ({ children }) => {
+const AdminRoute = ({ children, superAdminOnly = false }) => {
   const { user, isAuthenticated, loading } = useSelector((state) => state.auth);
 
   if (loading) {
@@ -19,6 +19,10 @@ const AdminRoute = ({ children }) => {
 
   if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN') {
     return <Navigate to="/" replace />;
+  }
+
+  if (superAdminOnly && user.role !== 'SUPER_ADMIN') {
+    return <Navigate to="/admin" replace />;
   }
 
   return children;

@@ -5,19 +5,30 @@ class AdminAnalyticsService {
   /**
    * KPI Overview stats
    */
-  static async getOverviewStats() {
+  static async getOverviewStats(currentUser = null) {
+    const adminProductFilter = currentUser?.role === 'ADMIN' ? { createdBy: currentUser.id } : undefined;
+    const orderOwnershipInclude = currentUser?.role === 'ADMIN'
+      ? [{
+          model: OrderItem,
+          as: 'items',
+          required: true,
+          include: [{ model: Product, as: 'product', where: adminProductFilter, attributes: [] }],
+        }]
+      : [];
+
     // 1. Total Revenue
-    const revenueResult = await Order.findOne({
-      attributes: [[sequelize.fn('COALESCE', sequelize.fn('SUM', sequelize.col('total_amount')), 0), 'totalRevenue']],
+    const revenueOrders = await Order.findAll({
+      attributes: ['totalAmount'],
       where: {
         status: { [Op.ne]: 'CANCELLED' },
       },
-      raw: true,
+      include: orderOwnershipInclude,
+      distinct: true,
     });
-    const totalRevenue = parseFloat(revenueResult?.totalRevenue || 0);
+    const totalRevenue = revenueOrders.reduce((sum, order) => sum + parseFloat(order.totalAmount || 0), 0);
 
     // 2. Total Orders
-    const totalOrders = await Order.count();
+    const totalOrders = await Order.count({ include: orderOwnershipInclude, distinct: true });
 
     // 3. Active Customers
     const totalCustomers = await User.count({
@@ -27,6 +38,12 @@ class AdminAnalyticsService {
     // 4. Low stock items count
     const lowStockItemsCount = await Inventory.count({
       where: sequelize.literal('`stock_quantity` <= `low_stock_threshold`'),
+      include: [{
+        model: Product,
+        as: 'product',
+        where: adminProductFilter,
+        attributes: [],
+      }],
     });
 
     // 5. Recent 5 orders
@@ -34,8 +51,10 @@ class AdminAnalyticsService {
       limit: 5,
       order: [['createdAt', 'DESC']],
       include: [
+        ...orderOwnershipInclude,
         { model: User, as: 'user', attributes: ['id', 'firstName', 'lastName', 'email'] },
       ],
+      subQuery: false,
     });
 
     return {
@@ -50,36 +69,44 @@ class AdminAnalyticsService {
   /**
    * Sales Chart: Daily aggregation for last 14 days
    */
-  static async getSalesChartData(days = 14) {
+  static async getSalesChartData(days = 14, currentUser = null) {
+    days = Math.min(Math.max(parseInt(days, 10) || 14, 1), 365);
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
     const orders = await Order.findAll({
-      attributes: [
-        [sequelize.fn('DATE', sequelize.col('placed_at')), 'date'],
-        [sequelize.fn('COUNT', sequelize.col('id')), 'ordersCount'],
-        [sequelize.fn('COALESCE', sequelize.fn('SUM', sequelize.col('total_amount')), 0), 'dailyRevenue'],
-      ],
+      attributes: ['placedAt', 'totalAmount'],
       where: {
         placedAt: { [Op.gte]: startDate },
         status: { [Op.ne]: 'CANCELLED' },
       },
-      group: [sequelize.fn('DATE', sequelize.col('placed_at'))],
-      order: [[sequelize.fn('DATE', sequelize.col('placed_at')), 'ASC']],
-      raw: true,
+      include: currentUser?.role === 'ADMIN'
+        ? [{
+            model: OrderItem,
+            as: 'items',
+            required: true,
+            include: [{ model: Product, as: 'product', where: { createdBy: currentUser.id }, attributes: [] }],
+          }]
+        : [],
+      order: [['placedAt', 'ASC']],
     });
 
-    return orders.map((o) => ({
-      date: o.date,
-      orders: parseInt(o.ordersCount, 10),
-      revenue: parseFloat(o.dailyRevenue),
-    }));
+    const byDate = new Map();
+    for (const order of orders) {
+      const date = new Date(order.placedAt).toISOString().slice(0, 10);
+      const current = byDate.get(date) || { date, orders: 0, revenue: 0 };
+      current.orders += 1;
+      current.revenue += parseFloat(order.totalAmount || 0);
+      byDate.set(date, current);
+    }
+    return [...byDate.values()];
   }
 
   /**
    * Top Selling Products
    */
-  static async getTopProducts(limit = 5) {
+  static async getTopProducts(limit = 5, currentUser = null) {
+    limit = Math.min(Math.max(parseInt(limit, 10) || 5, 1), 100);
     const topItems = await OrderItem.findAll({
       attributes: [
         'productId',
@@ -90,6 +117,9 @@ class AdminAnalyticsService {
       group: ['productId', 'productName'],
       order: [[sequelize.fn('SUM', sequelize.col('quantity')), 'DESC']],
       limit,
+      include: currentUser?.role === 'ADMIN'
+        ? [{ model: Product, as: 'product', where: { createdBy: currentUser.id }, attributes: [] }]
+        : [],
       raw: true,
     });
 

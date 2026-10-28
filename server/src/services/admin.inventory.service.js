@@ -12,12 +12,16 @@ class AdminInventoryService {
   /**
    * Get all inventory items with filtering
    */
-  static async getInventory({ page = 1, limit = 15, lowStockOnly = false, search = '' }) {
+  static async getInventory({ page = 1, limit = 15, lowStockOnly = false, search = '', adminId = null }, currentUser = null) {
+    page = Math.max(parseInt(page, 10) || 1, 1);
+    limit = Math.min(Math.max(parseInt(limit, 10) || 15, 1), 100);
     const offset = (page - 1) * limit;
     const where = {};
 
     if (lowStockOnly === 'true' || lowStockOnly === true) {
-      where[Op.and] = [sequelize.literal('`stock_quantity` <= `low_stock_threshold`')];
+      where[Op.and] = [
+        sequelize.literal('`inventory`.`stock_quantity` <= `inventory`.`low_stock_threshold`'),
+      ];
     }
 
     const { count, rows: inventory } = await Inventory.findAndCountAll({
@@ -30,7 +34,14 @@ class AdminInventoryService {
           model: Product,
           as: 'product',
           attributes: ['id', 'title', 'sku', 'brand'],
-          where: search ? { title: { [Op.like]: `%${search}%` } } : undefined,
+          where: {
+            ...(currentUser?.role === 'ADMIN'
+              ? { createdBy: currentUser.id }
+              : currentUser?.role === 'SUPER_ADMIN' && adminId
+                ? { createdBy: parseInt(adminId, 10) }
+                : {}),
+            ...(search ? { title: { [Op.like]: `%${search}%` } } : {}),
+          },
         },
         {
           model: ProductVariant,
@@ -54,12 +65,20 @@ class AdminInventoryService {
   /**
    * Adjust Stock with Inventory Transaction Audit Trail
    */
-  static async adjustStock(inventoryId, { quantityChange, type, notes }, adminId) {
+  static async adjustStock(inventoryId, { quantityChange, type, notes }, currentUser) {
     const transaction = await sequelize.transaction();
 
     try {
       const inventory = await Inventory.findByPk(inventoryId, {
-        include: [{ model: ProductVariant, as: 'variant' }],
+        include: [
+          { model: ProductVariant, as: 'variant' },
+          {
+            model: Product,
+            as: 'product',
+            attributes: ['id', 'createdBy'],
+            where: currentUser?.role === 'ADMIN' ? { createdBy: currentUser.id } : undefined,
+          },
+        ],
         transaction,
         lock: transaction.LOCK.UPDATE,
       });
@@ -92,8 +111,8 @@ class AdminInventoryService {
           inventoryId: inventory.id,
           quantityChange,
           type: type || 'ADJUSTMENT',
-          performedBy: adminId,
-          notes: notes || `Manual stock adjustment by admin #${adminId}`,
+          performedBy: currentUser.id,
+          notes: notes || `Manual stock adjustment by admin #${currentUser.id}`,
         },
         { transaction }
       );
@@ -101,7 +120,7 @@ class AdminInventoryService {
       await transaction.commit();
 
       await AuditService.log({
-        userId: adminId,
+        userId: currentUser.id,
         action: 'ADJUST_INVENTORY',
         entityType: 'INVENTORY',
         entityId: inventory.id,
@@ -124,7 +143,22 @@ class AdminInventoryService {
   /**
    * Get transaction history for an inventory item
    */
-  static async getTransactionHistory(inventoryId) {
+  static async getTransactionHistory(inventoryId, currentUser = null) {
+    const inventory = await Inventory.findByPk(inventoryId, {
+      include: [{
+        model: Product,
+        as: 'product',
+        attributes: ['id'],
+        where: currentUser?.role === 'ADMIN' ? { createdBy: currentUser.id } : undefined,
+      }],
+    });
+
+    if (!inventory) {
+      const error = new Error('Inventory record not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
     return await InventoryTransaction.findAll({
       where: { inventoryId },
       order: [['createdAt', 'DESC']],

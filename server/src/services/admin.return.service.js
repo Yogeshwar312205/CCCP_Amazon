@@ -2,6 +2,8 @@ const {
   Return,
   Refund,
   Order,
+  OrderItem,
+  Product,
   Payment,
   User,
   Notification,
@@ -10,10 +12,24 @@ const {
 const AuditService = require('./audit.service');
 
 class AdminReturnService {
+  static ensureReturnAccess(returnRecord, currentUser) {
+    if (
+      currentUser?.role === 'ADMIN' &&
+      !returnRecord.order?.items?.some((item) => item.product?.createdBy === currentUser.id)
+    ) {
+      const error = new Error('Access denied. You can only manage returns for your products.');
+      error.statusCode = 403;
+      error.code = 'RETURN_ACCESS_DENIED';
+      throw error;
+    }
+  }
+
   /**
    * List all return requests
    */
-  static async getReturns({ page = 1, limit = 15, status = '' }) {
+  static async getReturns({ page = 1, limit = 15, status = '', adminId = null }, currentUser = null) {
+    page = Math.max(parseInt(page, 10) || 1, 1);
+    limit = Math.min(Math.max(parseInt(limit, 10) || 15, 1), 100);
     const offset = (page - 1) * limit;
     const where = {};
     if (status) where.status = status;
@@ -28,7 +44,25 @@ class AdminReturnService {
           model: Order,
           as: 'order',
           attributes: ['id', 'orderNumber', 'totalAmount', 'status', 'placedAt'],
-          include: [{ model: Payment, as: 'payment', attributes: ['status', 'amount', 'paymentMethod'] }],
+          required: currentUser?.role === 'ADMIN' || (currentUser?.role === 'SUPER_ADMIN' && adminId),
+          include: [
+            {
+              model: OrderItem,
+              as: 'items',
+              required: currentUser?.role === 'ADMIN' || (currentUser?.role === 'SUPER_ADMIN' && adminId),
+              include: [{
+                model: Product,
+                as: 'product',
+                attributes: ['id', 'createdBy'],
+                where: currentUser?.role === 'ADMIN'
+                  ? { createdBy: currentUser.id }
+                  : currentUser?.role === 'SUPER_ADMIN' && adminId
+                    ? { createdBy: parseInt(adminId, 10) }
+                    : undefined,
+              }],
+            },
+            { model: Payment, as: 'payment', attributes: ['status', 'amount', 'paymentMethod'] },
+          ],
         },
         {
           model: User,
@@ -36,6 +70,7 @@ class AdminReturnService {
           attributes: ['id', 'firstName', 'lastName', 'email'],
         },
       ],
+      subQuery: false,
     });
 
     return {
@@ -52,7 +87,7 @@ class AdminReturnService {
   /**
    * Process Return Request State Machine & Trigger Refund
    */
-  static async processReturn(returnId, { action, adminNotes }, adminId) {
+  static async processReturn(returnId, { action, adminNotes }, currentUser) {
     const transaction = await sequelize.transaction();
 
     try {
@@ -61,7 +96,18 @@ class AdminReturnService {
           {
             model: Order,
             as: 'order',
-            include: [{ model: Payment, as: 'payment' }],
+            include: [
+              { model: Payment, as: 'payment' },
+              {
+                model: OrderItem,
+                as: 'items',
+                include: [{
+                  model: Product,
+                  as: 'product',
+                  attributes: ['id', 'createdBy'],
+                }],
+              },
+            ],
           },
         ],
         transaction,
@@ -70,6 +116,24 @@ class AdminReturnService {
       if (!returnRecord) {
         const error = new Error('Return request not found');
         error.statusCode = 404;
+        throw error;
+      }
+
+      this.ensureReturnAccess(returnRecord, currentUser);
+      const adminId = currentUser.id;
+      const allowedTransitions = {
+        APPROVE: ['REQUESTED'],
+        REJECT: ['REQUESTED'],
+        RECEIVE: ['APPROVED'],
+        COMPLETE_REFUND: ['ITEM_RECEIVED'],
+      };
+
+      if (!allowedTransitions[action]?.includes(returnRecord.status)) {
+        const error = new Error(
+          `Cannot ${action.toLowerCase().replace('_', ' ')} a return in ${returnRecord.status} status`
+        );
+        error.statusCode = 400;
+        error.code = 'INVALID_RETURN_TRANSITION';
         throw error;
       }
 
@@ -100,21 +164,34 @@ class AdminReturnService {
           returnRecord.order.status = 'RETURNED';
           await returnRecord.order.save({ transaction });
 
+          const existingRefund = await Refund.findOne({
+            where: { returnId: returnRecord.id },
+            transaction,
+            lock: transaction.LOCK.UPDATE,
+          });
+
+          if (existingRefund) {
+            const error = new Error('A refund has already been processed for this return');
+            error.statusCode = 409;
+            error.code = 'REFUND_ALREADY_PROCESSED';
+            throw error;
+          }
+
           // 2. Update Payment status
           if (returnRecord.order.payment) {
             returnRecord.order.payment.status = 'REFUNDED';
-            await returnRecord.order.save({ transaction });
+            await returnRecord.order.payment.save({ transaction });
           }
 
           // 3. Create Refund record
           await Refund.create(
             {
               returnId: returnRecord.id,
-              paymentId: returnRecord.order.payment?.id || null,
+              orderId: returnRecord.order.id,
               amount: returnRecord.order.totalAmount,
-              reason: returnRecord.reason,
-              status: 'COMPLETED',
-              processedAt: new Date(),
+              status: 'PROCESSED',
+              processedBy: adminId,
+              transactionReference: `REFUND-MOCK-${Date.now()}-${returnRecord.id}`,
             },
             { transaction }
           );

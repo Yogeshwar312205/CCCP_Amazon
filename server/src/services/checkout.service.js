@@ -131,6 +131,7 @@ class CheckoutService {
 
         inventoryUpdates.push({
           inventory,
+          variant,
           quantityDeducted: item.quantity,
         });
       }
@@ -210,6 +211,11 @@ class CheckoutService {
         if (update.inventory) {
           update.inventory.stockQuantity -= update.quantityDeducted;
           await update.inventory.save({ transaction });
+
+          if (update.variant) {
+            update.variant.stockQuantity = update.inventory.stockQuantity;
+            await update.variant.save({ transaction });
+          }
 
           await InventoryTransaction.create(
             {

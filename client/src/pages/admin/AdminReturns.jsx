@@ -1,5 +1,6 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import AdminScopeSelector from '../../components/admin/AdminScopeSelector';
 import { fetchAdminReturns } from '../../features/admin/adminSlice';
 import { adminApi } from '../../services/adminApi';
 import {
@@ -15,9 +16,11 @@ import {
 
 const AdminReturns = () => {
   const dispatch = useDispatch();
+  const { user } = useSelector((state) => state.auth);
   const { returns, returnsPagination, returnsLoading } = useSelector((state) => state.admin);
 
   const [page, setPage] = useState(1);
+  const [selectedAdminId, setSelectedAdminId] = useState(null);
   const [selectedStatus, setSelectedStatus] = useState('');
 
   // Process Modal
@@ -29,14 +32,16 @@ const AdminReturns = () => {
   const [processError, setProcessError] = useState('');
 
   useEffect(() => {
+    if (user?.role === 'SUPER_ADMIN' && !selectedAdminId) return;
     dispatch(
       fetchAdminReturns({
         page,
         limit: 15,
         status: selectedStatus,
+        ...(user?.role === 'SUPER_ADMIN' ? { adminId: selectedAdminId } : {}),
       })
     );
-  }, [dispatch, page, selectedStatus]);
+  }, [dispatch, page, selectedStatus, selectedAdminId, user?.role]);
 
   const handleOpenProcessModal = (ret, action) => {
     setSelectedReturn(ret);
@@ -64,6 +69,7 @@ const AdminReturns = () => {
           page,
           limit: 15,
           status: selectedStatus,
+          ...(user?.role === 'SUPER_ADMIN' ? { adminId: selectedAdminId } : {}),
         })
       );
     } catch (err) {
@@ -92,6 +98,7 @@ const AdminReturns = () => {
 
   return (
     <div className="space-y-6">
+      <AdminScopeSelector selectedAdminId={selectedAdminId} onSelect={(id) => { setSelectedAdminId(id); setPage(1); }} />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
